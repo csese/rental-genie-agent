@@ -11,9 +11,6 @@ ACCESS_TOKEN = 'EAAHufIMwjsABACmNBWqFd0BfSedVWDovdCgeytImjznKJHZCWptBESBq3S27bxQ
 VERIFY_TOKEN = 'VERIFY_TOKEN_FB'
 bot = Bot(ACCESS_TOKEN)
 
-start_chat_log = '''Human: Hello, how are you?
-AI: I am doing great. How can I help you today?
-'''
 
 # We will receive messages that Facebook sends our bot at this endpoint
 @app.route("/", methods=['GET', 'POST'])
