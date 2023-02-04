@@ -2,7 +2,7 @@
 import random
 from flask import Flask, request, session
 from pymessenger.bot import Bot
-from chatbot import *
+from functions import *
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'top-secret!'
@@ -34,11 +34,9 @@ def receive_message():
                     # Facebook Messenger ID for user so we know where to send response back to
                     recipient_id = message['sender']['id']
                     incoming_msg_text = message['message'].get('text')
-                    print(incoming_msg_text)
                     if incoming_msg_text:
                         response_sent_text = ask(incoming_msg_text, chat_log)
                         session['chat_log'] = append_interaction_to_chat_log(incoming_msg_text, response_sent_text, chat_log)
-                        print(chat_log)
                         send_message(recipient_id, response_sent_text)
                     # if user sends us a GIF, photo,video, or any other non-text item
                     if message['message'].get('attachments'):
