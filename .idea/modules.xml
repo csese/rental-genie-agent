@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/twilio-openai-bot.iml" filepath="$PROJECT_DIR$/.idea/twilio-openai-bot.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/rentalGenie.iml" filepath="$PROJECT_DIR$/.idea/rentalGenie.iml" />
     </modules>
   </component>
 </project>

@@ -1,0 +1,52 @@
+﻿nom appartement,nom chambre,Type,Superficie,Pièces,Chambres,Salles de bain,Adresse,Code postal,Ville,Pays,Description,Loyer,Charges,Propriétaire,Prenom,Date de Naissance,Début du bail,Fin du bail,Dépôt de garantie,Available for renting
+Amoureux , Chambre 4,Chambre,10,1,1,0,18 Rue des Amoureux,74100,Annemasse,France,Chambre dans une collocation pour 4 dans l'hypercentre d'Annemasse,660,50,SC Amoureux,Abel,01/06/2002,25/02/2022,24/02/2023,1180,No
+18 aout , Chambre 2,Chambre,11,1,1,0,17 rue du 18 aout 1944,74100,Annemasse,France,Chambre avec SDB partagée dans une superbe collocation pour 4 a Annemasse,640,50,M Charles Sese,Ajar,01/06/2002,01/09/2020,,1180,No
+Genevois , Chambre SDB,Chambre,13.3,1,1,1,8 Rue de Geneve,74100,Annemasse,France,Chambre avec SDB dans une collocation pour 4 dans l'ypercentre d'Annemasse,675,50,M Charles Sese,Baptiste,30/04/2001,01/06/2022,31/05/2023,1210,No
+Auriol , Chambre 1,Chambre,80,2,1,0,45 Boulevard Vincent Auriol,75013,Paris,France,Chambre avec salle de bain partagee dans grand appartement de 80 m2 dans le 13e.,900,150,SC Auriol,Bastien,31/08/2000,08/10/2022,07/10/2023,1125,No
+Genevois , Chambre Gauche,Chambre,10.9,1,1,0,8 Rue de Geneve,74100,Annemasse,France,Grande chambre dans une collocation pour 4 dans l'hypercentre d'Annemasse,650,50,M Charles Sese,,,,,,Yes
+18 aout , Chambre 3,Chambre,10.4,1,1,0,17 rue du 18 aout 1944,74100,Annemasse,France,Chambre avec SDB partagée dans une superbe collocation pour 4 a Annemasse,640,70,M Charles Sese,Carrara,27/01/2002,13/09/2022,12/09/2023,1140,No
+Paisible , Chambre 2,Chambre,10.52,1,1,0,4 Rue de la Paix,74240,Gaillard,France,Chambre avec SDB partagée dans une superbe collocation en duplex pour 4 a Gaillard,655,70,M Charles Sese,Celia,24/02/2001,01/01/2021,,1180,No
+Auriol , Chambre SDB,Chambre,80,2,1,1,45 Boulevard Vincent Auriol,75013,Paris,France,Chambre avec salle de bain partagee dans grand appartement de 80 m2 dans le 13e.,1100,150,SC Auriol,Clément,24/04/1998,01/10/2022,30/09/2023,1425,No
+Amoureux , Chambre 2,Chambre,"13,2",1,1,0,18 Rue des Amoureux,74100,Annemasse,France,Chambre dans une collocation pour 4 dans l'hypercentre d'Annemasse,660,50,SC Amoureux,Estelle,24/04/1998,01/12/2022,30/11/2023,1180,No
+Genevois , Chambre Balcon Grande,Chambre,16,1,1,0,8 Rue de Geneve,74100,Annemasse,France,Grande chambre avec balcon dans une collocation pour 4 dans l'hypercentre d'Annemasse,665,50,M Charles Sese,Isabella - Maria,19/07/2001,01/09/2021,,1230,No
+Saget , Petite Chambre,Chambre,10.2,1,1,0,36 Rue du Saget,74103,Annemasse,France,Chambre avec SDB partagée dans une superbe colocation pour 4 à Annemasse,620,70,Lucie Coute,Jayson,01/02/2001,01/09/2022,31/08/2023,1100,No
+Paisible , Chambre 4,Chambre,10.5,1,1,0,4 Rue de la Paix,74240,Gaillard,France,Chambre avec SDB partagée dans une superbe collocation en duplex pour 4 a Gaillard,640,50,M Charles Sese,Jounayd,04/05/2001,15/06/2022,14/06/2023,1140,No
+Saget , Grande Chambre,Chambre,10.4,1,1,0,36 Rue du Saget,74100,Annemasse,France,Chambre avec SDB partagée dans une superbe colocation pour 4 personnes à Gaillard,635,70,Lucie Coute,,,,,,Yes
+Saget , Chambre SDB Droite,Chambre,10.23,1,1,1,36 Rue du Saget,74100,Annemasse,France,"Room with private bathroom in a sunny and comfy apartment located in a quiet neighborhood, right between Annemasse city center and the highway going to Geneva. 
+Fully furnished apartment so that you only need your personal items to feel at home.
+Parking is easy and feasible in the street (for free).",650,70,Lucie Coute,Lennon,06/05/1990,18/02/2023,17/02/2024,0,No
+18 aout , Chambre SDB,Chambre,10.9,1,1,1,17 Rue du 18 Août 1944,74100,Annemasse,France,Chambre avec SDB dans une superbe collocation pour 4 a Annemasse,670,50,M Charles Sese,Lison,28/03/2001,01/06/2022,31/05/2023,1200,No
+Auriol , Chambre 2,Chambre,80,2,1,0,45 Boulevard Vincent Auriol,75013,Paris,France,Chambre avec salle de bain partagee dans grand appartement de 80 m2 dans le 13e.,900,150,SC Auriol,Lucas,01/12/1997,01/10/2022,30/09/2023,0,No
+18 aout , Chambre 4,Chambre,10.2,1,1,0,17 rue du 18 aout 1944,74100,Annemasse,France,Chambre avec SDB partagée dans une superbe collocation pour 4 a Annemasse,640,50,M Charles Sese,Maidine,08/04/2001,03/08/2022,02/08/2023,1140,No
+Saget , Chambre SDB Gauche,Chambre,12.6,1,1,1,36 Rue du Saget,74100,Annemasse,France,Chambre avec SDB dans une superbe colocation pour 4 personnes à Annemasse,650,70,Lucie Coute,Mikail,06/02/2002,31/07/2022,10/03/2023,1160,No
+Amoureux , Chambre SDB,Chambre,10,1,1,1,18 Rue des Amoureux,74100,Annemasse,France,Chambre avec SDB dans une collocation pour 4 dans l'hypercentre d'Annemasse,690,70,SC Amoureux,Nathalie,08/04/2001,25/02/2022,24/02/2023,1240,No
+Amoureux , Chambre 3,Chambre,10,1,1,0,18 Rue des Amoureux,74100,Annemasse,France,Chambre dans une colocation meublée pour 4 dans l'hypercentre d'Annemasse,660,50,SC Amoureux,Ralph,,25/02/2022,24/02/2023,1180,No
+Paisible , Chambre 3,Chambre,10.71,1,1,0,4 Rue de la Paix,74240,Gaillard,France,Chambre avec SDB partagée dans une superbe collocation en duplex pour 4 a Gaillard,655,52.17,M Charles Sese,Sofian,08/04/2001,22/06/2020,,1150,No
+Genevois , Chambre Balcon Moyenne,Chambre,13.5,1,1,0,8 Rue de Geneve,74100,Annemasse,France,Grande chambre avec balcon dans une collocation pour 4 dans l'hypercentre d'Annemasse,689.72,50,M Charles Sese,Thomas,04/11/1995,18/01/2021,,1230,No
+Paisible , Chambre SDB,Chambre,10.28,1,1,1,4 Rue de la Paix,74240,Gaillard,France,Chambre avec SDB dans une superbe collocation en duplex pour 4 a Gaillard,675,70,M Charles Sese,Yamina,02/09/1995,11/09/2022,10/09/2023,1210,No
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
