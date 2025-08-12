@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 from typing import Optional, Dict, Any, List
@@ -14,6 +15,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Rental Genie Agent", description="An intelligent agent for rental property inquiries")
+
+# Add CORS middleware for deployment
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure for production - replace with specific domains
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Pydantic models for request/response
 class MessageRequest(BaseModel):
@@ -53,7 +63,7 @@ class ConversationMemoryResponse(BaseModel):
     session_ids: Optional[list] = None
 
 class TenantProfileResponse(BaseModel):
-    session_id: str
+    session_id: Optional[str] = None
     status: str = "prospect"
     age: Optional[int] = None
     sex: Optional[str] = None
@@ -312,6 +322,140 @@ async def get_properties():
         logger.error(f"Error fetching properties: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/properties/{property_id}")
+async def get_property_by_id(property_id: str):
+    """Get a specific property by ID"""
+    try:
+        property_data = load_property_data()
+        if not property_data:
+            raise HTTPException(status_code=500, detail="Property data not available")
+        
+        # Find the property by ID
+        for prop in property_data:
+            if prop.get('id') == property_id:
+                return prop
+        
+        raise HTTPException(status_code=404, detail="Property not found")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching property: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class PropertyUpdateRequest(BaseModel):
+    """Request model for property updates"""
+    property_name: Optional[str] = None
+    address_street: Optional[str] = None
+    city: Optional[str] = None
+    zip_code: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    rent_amount: Optional[float] = None
+    utilities_amount: Optional[float] = None
+    date_of_availability: Optional[str] = None
+    deposit_amount: Optional[float] = None
+    room_sub_name: Optional[str] = None
+    apartment_name: Optional[str] = None
+
+class BulkTenantUpdateRequest(BaseModel):
+    """Request model for bulk tenant updates"""
+    session_ids: List[str]
+    status: str
+    additional_data: Optional[Dict[str, Any]] = None
+
+@app.put("/properties/{property_id}")
+async def update_property(property_id: str, request: PropertyUpdateRequest):
+    """Update a specific property"""
+    try:
+        # For now, we'll update the cached data
+        # In a production system, this would update Airtable directly
+        global property_data_cache
+        
+        if property_data_cache is None:
+            property_data_cache = load_property_data()
+        
+        # Find and update the property
+        for prop in property_data_cache:
+            if prop.get('id') == property_id:
+                fields = prop.get('fields', {})
+                
+                # Update only the fields that are provided
+                if request.property_name is not None:
+                    fields['property_name'] = request.property_name
+                if request.address_street is not None:
+                    fields['address_street'] = request.address_street
+                if request.city is not None:
+                    fields['city'] = request.city
+                if request.zip_code is not None:
+                    fields['zip_code'] = request.zip_code
+                if request.description is not None:
+                    fields['Description'] = request.description
+                if request.status is not None:
+                    fields['status'] = request.status
+                if request.rent_amount is not None:
+                    fields['rent_amount'] = request.rent_amount
+                if request.utilities_amount is not None:
+                    fields['utilities_amout'] = request.utilities_amount
+                if request.date_of_availability is not None:
+                    fields['date_of_availability'] = request.date_of_availability
+                if request.deposit_amount is not None:
+                    fields['deposit_amount'] = request.deposit_amount
+                if request.room_sub_name is not None:
+                    fields['room_sub_name'] = request.room_sub_name
+                if request.apartment_name is not None:
+                    fields['apartment_name'] = request.apartment_name
+                
+                logger.info(f"Property {property_id} updated successfully")
+                return {"message": "Property updated successfully", "property_id": property_id}
+        
+        raise HTTPException(status_code=404, detail="Property not found")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating property: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/tenants/bulk-update")
+async def bulk_update_tenants(request: BulkTenantUpdateRequest):
+    """Bulk update tenant statuses"""
+    try:
+        # Validate status using enum
+        if not TenantStatus.is_valid(request.status):
+            valid_statuses = TenantStatus.get_all_values()
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid status '{request.status}'. Must be one of: {valid_statuses}"
+            )
+        
+        updated_count = 0
+        failed_updates = []
+        
+        for session_id in request.session_ids:
+            try:
+                success = update_tenant_status(session_id, request.status, request.additional_data)
+                if success:
+                    updated_count += 1
+                else:
+                    failed_updates.append(session_id)
+            except Exception as e:
+                logger.error(f"Error updating tenant {session_id}: {e}")
+                failed_updates.append(session_id)
+        
+        return {
+            "message": f"Bulk update completed",
+            "updated_count": updated_count,
+            "failed_count": len(failed_updates),
+            "failed_session_ids": failed_updates
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in bulk tenant update: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/tenants", response_model=TenantsListResponse)
 async def get_all_tenants(status: Optional[str] = None):
     """Get all tenant profiles from persistent storage, optionally filtered by status"""
@@ -323,8 +467,12 @@ async def get_all_tenants(status: Optional[str] = None):
         
         tenants = []
         for tenant_data in tenants_data:
+            session_id = tenant_data.get("session_id")
+            if session_id is None:
+                session_id = f"tenant_{len(tenants)}"  # Generate a default session_id
+                
             tenant = TenantProfileResponse(
-                session_id=tenant_data.get("session_id", ""),
+                session_id=session_id,
                 status=tenant_data.get("status", "prospect"),
                 age=tenant_data.get("age"),
                 sex=tenant_data.get("sex"),

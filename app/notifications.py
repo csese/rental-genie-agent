@@ -17,14 +17,14 @@ load_dotenv()
 class HandoffNotification:
     """Structured handoff notification data"""
     session_id: str
-    tenant_name: Optional[str] = None
-    tenant_age: Optional[int] = None
-    tenant_occupation: Optional[str] = None
-    tenant_language: Optional[str] = None
     handoff_reason: str
     confidence_level: str
     escalation_priority: str
     conversation_summary: str
+    tenant_name: Optional[str] = None
+    tenant_age: Optional[int] = None
+    tenant_occupation: Optional[str] = None
+    tenant_language: Optional[str] = None
     tenant_profile: Dict[str, Any] = None
     conversation_history: List[Dict[str, Any]] = None
     property_interest: Optional[str] = None

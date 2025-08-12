@@ -223,26 +223,48 @@ The application will be available at `http://localhost:8000`
 
 ## Testing
 
+### Unit Tests
 ```bash
 # Test the chat functionality
-python test_interactive.py
+python unit_tests/test_interactive.py
 
 # Test tenant information extraction
-python test_extraction.py
+python unit_tests/test_extraction.py
 
 # Test conversation memory
-python test_conversation_memory.py
+python unit_tests/test_conversation_memory.py
 
 # Test tenant storage and status management
-python test_tenant_storage.py
+python unit_tests/test_tenant_storage.py
+```
 
-# Test Slack notifications
+### Integration Tests
+```bash
+# Test Slack notifications (requires webhook URL)
+python integration_tests/test_slack_quick.py          # Quick test
+python integration_tests/test_slack_notifications.py  # Comprehensive test
+
+# Test API endpoints (when server is running)
 curl -X POST http://localhost:8000/test/slack
 
-# Test handoff functionality
 curl -X POST http://localhost:8000/test/handoff \
   -H "Content-Type: application/json" \
   -d '{"session_id": "test_123", "handoff_reason": "Test handoff", "escalation_priority": "medium"}'
+```
+
+### Test Organization
+- **`unit_tests/` directory**: Unit tests for core functionality
+- **`integration_tests/` directory**: Integration tests and external service testing
+- **`run_tests.py`**: Simple script to run all tests from the root directory
+- See `integration_tests/README.md` for detailed testing documentation
+
+### Quick Test Commands
+```bash
+# Run all tests
+python run_tests.py
+
+# Run comprehensive test suite
+python integration_tests/run_all_tests.py
 ```
 
 ## Architecture
