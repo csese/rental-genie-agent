@@ -1,0 +1,63 @@
+{
+  "name": "rental-genie-backend",
+  "description": "AI-powered rental property management agent",
+  "repository": "https://github.com/csese/rental-genie-agent",
+  "logo": "https://node-js-sample.herokuapp.com/node.png",
+  "keywords": ["python", "fastapi", "ai", "rental", "property"],
+  "env": {
+    "AIRTABLE_API_KEY": {
+      "description": "Your Airtable API key",
+      "required": true
+    },
+    "AIRTABLE_BASE_ID": {
+      "description": "Your Airtable base ID",
+      "value": "apph3SwLeTZGolkwK",
+      "required": true
+    },
+    "AIRTABLE_PROPERTIES_TABLE": {
+      "description": "Airtable properties table name",
+      "value": "tblO8k3E5rTXl4IAv",
+      "required": true
+    },
+    "AIRTABLE_TENANTS_TABLE": {
+      "description": "Airtable tenants table name",
+      "value": "tblO8k3E5rTXl4IAv",
+      "required": true
+    },
+    "OPENAI_API_KEY": {
+      "description": "Your OpenAI API key",
+      "required": true
+    },
+    "SLACK_WEBHOOK_RENTAL_GENIE_URL": {
+      "description": "Slack webhook URL for notifications",
+      "required": false
+    },
+    "ENABLE_MOCK_DATA": {
+      "description": "Enable mock data for testing",
+      "value": "false",
+      "required": false
+    },
+    "LOG_LEVEL": {
+      "description": "Logging level",
+      "value": "INFO",
+      "required": false
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "addons": [
+    {
+      "plan": "heroku-postgresql:mini",
+      "as": "DATABASE"
+    }
+  ]
+}
