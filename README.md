@@ -1,158 +1,264 @@
 # Rental Genie Agent
 
-An intelligent AI agent for handling rental property inquiries and tenant applications. Built with FastAPI, LangChain, and OpenAI.
+An intelligent agent for rental property inquiries that can collect and manage tenant information throughout the entire rental lifecycle.
 
 ## Features
 
-- 🤖 **Intelligent Chat Agent**: AI-powered responses to rental inquiries
-- 🏠 **Property Management**: Integration with Airtable for property data
-- 📱 **Multi-Platform Support**: Webhooks for Facebook, generic platforms, and direct API
-- 💬 **Conversation Memory**: Maintains context across conversations
-- 🔍 **Health Monitoring**: Built-in health checks and monitoring
-- 📊 **Structured Responses**: JSON-formatted responses with confidence scoring
+- **Intelligent Conversation**: AI-powered agent that can understand and respond to rental inquiries
+- **Tenant Information Collection**: Automatically extracts and stores tenant profiles
+- **Status-Based Workflow**: Tracks tenants from prospect to active tenant with status management
+- **Persistent Storage**: Tenant data is stored in Airtable for persistence and scalability
+- **Multi-language Support**: Handles both English and French conversations
+- **Session Management**: Maintains conversation context across multiple interactions
+- **Property Integration**: Connects with property listings from Airtable
+- **Smart Handoff System**: Automatically escalates complex queries to human property owners
+- **Slack Notifications**: Real-time notifications to property owners via Slack
 
-## Architecture
+## Setup
 
+### Environment Variables
+
+Create a `.env` file with the following variables:
+
+```bash
+AIRTABLE_PERSONAL_ACCESS_TOKEN=your_airtable_token
+BASE_ID=your_base_id
+PROPERTY_TABLE_NAME=your_property_table_name
+TENANT_TABLE_NAME=Tenants  # Optional, defaults to "Tenants"
+SLACK_WEBHOOK_RENTAL_GENIE_URL=your_slack_webhook_url  # Optional, for notifications
 ```
-rentalGenie/
-├── app/
-│   ├── main.py          # FastAPI application with endpoints
-│   ├── agent.py         # LangChain agent implementation
-│   └── utils.py         # Utility functions for data loading
-├── data/                # Property data files
-├── model/               # Trained models
-├── processed/           # Processed data
-└── requirements.txt     # Python dependencies
+
+### Slack Setup
+
+To enable notifications:
+
+1. **Create a Slack App**: Go to https://api.slack.com/apps
+2. **Enable Incoming Webhooks**: In your app settings, enable incoming webhooks
+3. **Create Webhook**: Click "Add New Webhook to Workspace" and select your desired channel
+4. **Copy Webhook URL**: The webhook URL will look like `https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX`
+5. **Set Environment Variable**: Add the webhook URL to your `.env` file as `SLACK_WEBHOOK_RENTAL_GENIE_URL`
+
+**Note**: The webhook URL is tied to a specific channel. All notifications will be sent to that channel. If you need notifications in different channels, you'll need to create separate webhooks for each channel.
+
+### Airtable Setup
+
+#### Property Table
+Your property table should contain fields like:
+- Name
+- Address
+- Rent
+- Available (date)
+- Status
+
+#### Tenant Table (Updated)
+Create a table called "Tenants" with the following fields:
+
+| Field Name | Type | Description |
+|------------|------|-------------|
+| Session ID | Single line text | Unique session identifier |
+| Status | Single select | Tenant status (see status values below) |
+| Age | Number | Tenant's age |
+| Sex | Single select | Male/Female |
+| Occupation | Single line text | Tenant's occupation |
+| Move In Date | Date | Preferred move-in date |
+| Rental Duration | Single line text | How long they want to rent |
+| Guarantor Status | Single select | Yes/No/Need/Visale |
+| Guarantor Details | Single line text | Details about guarantor |
+| Viewing Interest | Checkbox | Whether they want a viewing |
+| Availability | Single line text | When they're available |
+| Language Preference | Single select | English/French |
+| Property Interest | Single line text | Specific property they're interested in |
+| Application Date | Date | When application was submitted |
+| Lease Start Date | Date | When lease begins |
+| Lease End Date | Date | When lease ends |
+| Notes | Long text | Additional notes |
+| Created At | Date | When profile was created |
+| Last Updated | Date | When profile was last updated |
+| Conversation Turns | Number | Number of conversation turns |
+
+### Tenant Status Values
+
+The system uses the following status values to track tenant progression:
+
+- **prospect** - Initial inquiry, incomplete profile
+- **qualified** - Complete profile, ready for viewing
+- **viewing_scheduled** - Viewing arranged
+- **application_submitted** - Rental application submitted
+- **approved** - Application approved
+- **active_tenant** - Currently renting
+- **former_tenant** - Past tenant
+- **rejected** - Application rejected
+- **withdrawn** - Prospect withdrew interest
+
+### Handoff Triggers
+
+The system automatically detects when to handoff conversations to human property owners:
+
+#### Automatic Triggers
+- **Confidence Threshold**: When agent confidence drops below 70%
+- **Complex Queries**: Questions involving legal, financial, or policy matters
+- **Technical Issues**: Property-specific questions the agent can't answer
+- **Emotional Situations**: When tenant expresses frustration or urgency
+- **Multiple Failed Attempts**: After 3-4 unsuccessful attempts to help
+
+#### Manual Triggers
+- **Explicit Requests**: When tenant asks to speak with a human
+- **Keyword Detection**: Phrases like "speak to someone", "human agent", "real person"
+- **Language Barriers**: When communication becomes difficult
+
+#### Escalation Priorities
+- **low**: Standard handoff with normal priority
+- **medium**: Moderate urgency requiring attention
+- **high**: High urgency requiring immediate attention
+- **urgent**: Critical situation requiring immediate response
+
+### TenantStatus Enum
+
+The system uses a Python `Enum` class for type-safe status management:
+
+```python
+from app.conversation_memory import TenantStatus
+
+# Access enum values
+TenantStatus.PROSPECT.value  # "prospect"
+TenantStatus.QUALIFIED.value  # "qualified"
+TenantStatus.ACTIVE_TENANT.value  # "active_tenant"
+
+# Validate status
+TenantStatus.is_valid("prospect")  # True
+TenantStatus.is_valid("invalid")   # False
+
+# Get display names
+TenantStatus.get_display_name("prospect")  # "Prospect"
+TenantStatus.get_display_name("active_tenant")  # "Active Tenant"
+
+# Get descriptions
+TenantStatus.get_description("prospect")  # "Initial inquiry, incomplete profile"
+
+# Get all values
+TenantStatus.get_all_values()  # ["prospect", "qualified", ...]
 ```
 
 ## API Endpoints
 
-### Chat Endpoints
-- `POST /chat` - Main chat endpoint for direct message handling
-- `POST /webhook/facebook` - Facebook Messenger webhook
-- `POST /webhook/generic` - Generic webhook for any platform
+### Chat
+- `POST /chat` - Main chat endpoint for tenant interactions
 
-### Utility Endpoints
-- `GET /` - Health check
-- `GET /health` - Detailed health status
+### Tenant Management
+- `GET /tenants` - Get all tenant profiles (optionally filtered by status)
+- `GET /tenants/{session_id}` - Get specific tenant profile
+- `PUT /tenants/{session_id}/status` - Update tenant status
+- `DELETE /tenants/{session_id}` - Delete tenant profile
+- `POST /tenants/load-all` - Load all tenants into memory
+
+### Tenant Status Endpoints
+- `GET /tenants/prospects` - Get all prospect tenants
+- `GET /tenants/qualified` - Get all qualified prospects
+- `GET /tenants/active` - Get all active tenants
+- `GET /tenants/stats` - Get tenant statistics by status
+- `GET /tenants/status-info` - Get information about all available statuses
+
+### Handoff Management
+- `GET /handoff/triggers` - Get information about handoff triggers
+- `POST /test/slack` - Test Slack notification functionality
+- `POST /test/handoff` - Test handoff trigger functionality
+
+### Conversation Management
+- `GET /conversation/{session_id}` - Get conversation info
+- `GET /conversation` - Get all conversations
+- `DELETE /conversation/{session_id}` - Clear conversation
+
+### Properties
 - `GET /properties` - Get available properties
 
-## Setup
+### System
+- `GET /health` - Health check
+- `GET /prompts` - Get prompt information
+- `POST /prompts/switch` - Switch prompt version
 
-### Prerequisites
-- Python 3.8+
-- OpenAI API key
-- Airtable API key (optional, for property data)
+## Tenant Information Storage
 
-### Installation
+The system stores tenant information in multiple layers:
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd rentalGenie
-   ```
+1. **In-Memory**: Active conversations and recent data for fast access
+2. **Persistent Storage**: Airtable database for long-term storage and backup
+3. **Status-Based Workflow**: Tracks tenant progression through the rental process
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Data Flow
+1. User sends message → Agent processes and extracts information
+2. Information is stored in memory for immediate use
+3. Data is automatically synced to Airtable for persistence
+4. Status is automatically updated based on profile completion
+5. On application restart, data can be loaded back from Airtable
 
-3. **Set up environment variables**
-   Create a `.env` file with:
-   ```env
-   OPENAI_API_KEY=your_openai_api_key
-   BASE_ID=your_airtable_base_id
-   AIRTABLE_API_KEY=your_airtable_api_key
-   PROPERTY_TABLE_NAME=your_property_table_name
-   ```
+### Handoff Process
+1. Agent detects handoff trigger → Evaluates conversation context
+2. Agent sends notification to Slack → Property owner receives alert
+3. Agent provides final response to tenant → No mention of handoff
+4. Session marked as handed off → Agent stops intervening
+5. Property owner can view full context → Complete conversation history
 
-4. **Run the application**
-   ```bash
-   python -m app.main
-   ```
+### Status Transitions
 
-The server will start on `http://localhost:8000`
+The system automatically manages status transitions:
 
-## Usage
+- **prospect** → **qualified**: When all required information is collected
+- **qualified** → **viewing_scheduled**: When viewing is arranged
+- **viewing_scheduled** → **application_submitted**: When application is submitted
+- **application_submitted** → **approved**: When application is approved
+- **approved** → **active_tenant**: When lease begins
+- **active_tenant** → **former_tenant**: When lease ends
 
-### Direct Chat API
+## Running the Application
+
 ```bash
-curl -X POST "http://localhost:8000/chat" \
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the application
+python -m app.main
+```
+
+The application will be available at `http://localhost:8000`
+
+## Testing
+
+```bash
+# Test the chat functionality
+python test_interactive.py
+
+# Test tenant information extraction
+python test_extraction.py
+
+# Test conversation memory
+python test_conversation_memory.py
+
+# Test tenant storage and status management
+python test_tenant_storage.py
+
+# Test Slack notifications
+curl -X POST http://localhost:8000/test/slack
+
+# Test handoff functionality
+curl -X POST http://localhost:8000/test/handoff \
   -H "Content-Type: application/json" \
-  -d '{
-    "message": "I need a 2-bedroom apartment",
-    "user_id": "user123",
-    "session_id": "session456"
-  }'
+  -d '{"session_id": "test_123", "handoff_reason": "Test handoff", "escalation_priority": "medium"}'
 ```
 
-### Generic Webhook
-```bash
-curl -X POST "http://localhost:8000/webhook/generic" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "What properties do you have available?",
-    "user_id": "user123"
-  }'
-```
+## Architecture
 
-### Health Check
-```bash
-curl "http://localhost:8000/health"
-```
+- **Agent** (`app/agent.py`): Core AI logic and message handling with handoff detection
+- **Conversation Memory** (`app/conversation_memory.py`): Session and tenant data management with status tracking
+- **Utils** (`app/utils.py`): Airtable integration and data utilities
+- **Main** (`app/main.py`): FastAPI application and endpoints
+- **Prompts** (`app/prompts.py`): AI prompt management with handoff instructions
+- **Notifications** (`app/notifications.py`): Slack notification system for handoffs
 
-## Agent Capabilities
+## Data Privacy
 
-The Rental Genie agent can:
-
-- **Answer Property Questions**: Provide information about available properties
-- **Collect Tenant Information**: Gather move-in dates, duration, age, occupation, etc.
-- **Handle Inquiries**: Respond to general rental questions
-- **Maintain Context**: Remember conversation history
-- **Validate Information**: Ensure all required tenant details are collected
-
-## Configuration
-
-### Environment Variables
-- `OPENAI_API_KEY`: Your OpenAI API key
-- `BASE_ID`: Airtable base ID for property data
-- `AIRTABLE_API_KEY`: Airtable API key
-- `PROPERTY_TABLE_NAME`: Name of the properties table in Airtable
-
-### Model Configuration
-The agent uses GPT-4 by default. You can modify the model in `app/agent.py`:
-
-```python
-llm = ChatOpenAI(model="gpt-4o")  # Change model here
-```
-
-## Development
-
-### Project Structure
-- `app/main.py`: FastAPI application and endpoints
-- `app/agent.py`: LangChain agent implementation
-- `app/utils.py`: Data loading and utility functions
-- `data/`: Property data files
-- `model/`: Trained models and classifiers
-
-### Adding New Features
-1. Create new endpoints in `app/main.py`
-2. Extend the agent logic in `app/agent.py`
-3. Add utility functions in `app/utils.py`
-4. Update this README with new features
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For support and questions, please open an issue in the repository or contact the development team.
+- Tenant data is stored securely in Airtable
+- Sessions can be cleared for privacy compliance
+- No sensitive data is logged in application logs
+- Data retention policies can be implemented through Airtable
+- Status tracking provides audit trail of tenant interactions
+- Handoff notifications include only necessary information for property owners
