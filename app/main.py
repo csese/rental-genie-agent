@@ -5,6 +5,8 @@ from pydantic import BaseModel
 import uvicorn
 from typing import Optional, Dict, Any, List
 import logging
+import os
+import httpx
 from .agent import handle_message, get_prompt_info, switch_prompt_version, get_conversation_memory_info, clear_conversation_memory, test_slack_notification
 from .utils import get_all_property_info, get_all_tenant_profiles, get_tenant_profile, delete_tenant_profile, update_tenant_status, get_tenants_by_status, get_prospects, get_qualified_prospects, get_active_tenants, get_tenant_status_info
 from .conversation_memory import TenantStatus
@@ -241,39 +243,97 @@ async def clear_conversation(session_id: str):
         logger.error(f"Error clearing conversation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/webhook/facebook")
+@app.get("/webhook")
+async def facebook_webhook_verification(request: Request):
+    """Facebook webhook verification endpoint"""
+    try:
+        # Get query parameters
+        mode = request.query_params.get("hub.mode")
+        token = request.query_params.get("hub.verify_token")
+        challenge = request.query_params.get("hub.challenge")
+        
+        # Your verify token (set this in Facebook Developer Console)
+        verify_token = "rental-genie-2024"
+        
+        # Check if mode and token are correct
+        if mode == "subscribe" and token == verify_token:
+            logger.info("Facebook webhook verified successfully")
+            return int(challenge)
+        else:
+            logger.error(f"Facebook webhook verification failed: mode={mode}, token={token}")
+            raise HTTPException(status_code=403, detail="Forbidden")
+            
+    except Exception as e:
+        logger.error(f"Facebook webhook verification error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/webhook")
 async def facebook_webhook(request: Request):
-    """Facebook webhook endpoint (existing functionality)"""
+    """Facebook webhook endpoint for receiving messages"""
     try:
         data = await request.json()
+        logger.info(f"Received Facebook webhook: {data}")
         
-        # Extract message from Facebook webhook format
+        # Handle Facebook webhook format
         if 'entry' in data and len(data['entry']) > 0:
-            entry = data['entry'][0]
-            if 'messaging' in entry and len(entry['messaging']) > 0:
-                messaging = entry['messaging'][0]
-                if 'message' in messaging and 'text' in messaging['message']:
-                    user_msg = messaging['message']['text']
-                    user_id = messaging['sender']['id']
-                    
-                    # Load property data
-                    property_data = load_property_data()
-                    if not property_data:
-                        return JSONResponse(status_code=500, content={"error": "Property data not available"})
-                    
-                    # Handle the message
-                    response = handle_message(user_msg, property_data)
-                    
-                    # TODO: Send response back via Facebook API
-                    # You would implement Facebook API call here
-                    
-                    return {"status": "ok", "response": response}
+            for entry in data['entry']:
+                if 'messaging' in entry and len(entry['messaging']) > 0:
+                    for messaging in entry['messaging']:
+                        if 'message' in messaging and 'text' in messaging['message']:
+                            user_msg = messaging['message']['text']
+                            user_id = messaging['sender']['id']
+                            
+                            logger.info(f"Processing message from user {user_id}: {user_msg}")
+                            
+                            # Load property data
+                            property_data = load_property_data()
+                            if not property_data:
+                                logger.error("Property data not available")
+                                continue
+                            
+                            # Handle the message
+                            response = handle_message(user_msg, property_data)
+                            
+                            # Send response back via Facebook API
+                            await send_facebook_message(user_id, response)
+                            
+                            logger.info(f"Sent response to user {user_id}: {response}")
         
-        return {"status": "ok", "message": "No valid message found"}
+        return {"status": "ok"}
         
     except Exception as e:
         logger.error(f"Facebook webhook error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+async def send_facebook_message(user_id: str, message: str):
+    """Send message to Facebook user via Facebook API"""
+    try:
+        # Get Facebook access token from environment
+        access_token = os.environ.get("FACEBOOK_ACCESS_TOKEN")
+        if not access_token:
+            logger.error("FACEBOOK_ACCESS_TOKEN not set")
+            return
+        
+        # Facebook Messenger API endpoint
+        url = f"https://graph.facebook.com/v18.0/me/messages?access_token={access_token}"
+        
+        # Message payload
+        payload = {
+            "recipient": {"id": user_id},
+            "message": {"text": message}
+        }
+        
+        # Send message
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload)
+            
+            if response.status_code == 200:
+                logger.info(f"Message sent successfully to user {user_id}")
+            else:
+                logger.error(f"Failed to send message to user {user_id}: {response.text}")
+                
+    except Exception as e:
+        logger.error(f"Error sending Facebook message: {e}")
 
 @app.post("/webhook/generic")
 async def generic_webhook(request: Request):
