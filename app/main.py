@@ -274,6 +274,31 @@ async def facebook_webhook(request: Request):
         data = await request.json()
         logger.info(f"Received Facebook webhook: {data}")
         
+        # Validate signature for security (add this)
+        signature = request.headers.get('X-Hub-Signature-256')
+        if not signature:
+            logger.error("Missing X-Hub-Signature-256")
+            raise HTTPException(status_code=403, detail="Invalid signature")
+        
+        # Compute expected signature (use your app secret from Facebook App dashboard)
+        app_secret = os.environ.get("FACEBOOK_APP_SECRET")
+        if not app_secret:
+            logger.error("FACEBOOK_APP_SECRET not set")
+            raise HTTPException(status_code=500, detail="App secret not configured")
+        
+        # Hash the body with HMAC-SHA256 and app secret
+        import hmac
+        import hashlib
+        expected_sig = 'sha256=' + hmac.new(
+            app_secret.encode('utf-8'),
+            await request.body(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        if signature != expected_sig:
+            logger.error(f"Signature mismatch: received {signature}, expected {expected_sig}")
+            raise HTTPException(status_code=403, detail="Invalid signature")
+        
         # Handle Facebook webhook format
         if 'entry' in data and len(data['entry']) > 0:
             for entry in data['entry']:
@@ -285,14 +310,23 @@ async def facebook_webhook(request: Request):
                             
                             logger.info(f"Processing message from user {user_id}: {user_msg}")
                             
-                            # Load property data
+                            # Load property data and convert to string
                             property_data = load_property_data()
                             if not property_data:
                                 logger.error("Property data not available")
                                 continue
+                            property_data_str = str(property_data)
                             
-                            # Handle the message
-                            response = handle_message(user_msg, property_data)
+                            # Generate session_id based on user_id (for conversation tracking)
+                            session_id = f"fb_{user_id}_{int(time.time())}"  # Or use a persistent store
+                            
+                            # Handle the message (fix: add missing params)
+                            response = handle_message(
+                                user_msg, 
+                                property_data_str, 
+                                session_id,
+                                prompt_version="current"  # Default
+                            )
                             
                             # Send response back via Facebook API
                             await send_facebook_message(user_id, response)
@@ -314,8 +348,8 @@ async def send_facebook_message(user_id: str, message: str):
             logger.error("FACEBOOK_ACCESS_TOKEN not set")
             return
         
-        # Facebook Messenger API endpoint
-        url = f"https://graph.facebook.com/v18.0/me/messages?access_token={access_token}"
+        # Facebook Messenger API endpoint (update to v23.0)
+        url = f"https://graph.facebook.com/v23.0/me/messages?access_token={access_token}"
         
         # Message payload
         payload = {
