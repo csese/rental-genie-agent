@@ -329,9 +329,12 @@ async def facebook_webhook(request: Request):
                             )
                             
                             # Send response back via Facebook API
-                            await send_facebook_message(user_id, response)
-                            
-                            logger.info(f"Sent response to user {user_id}: {response}")
+                            try:
+                                await send_facebook_message(user_id, response)
+                                logger.info(f"Sent response to user {user_id}: {response}")
+                            except Exception as e:
+                                logger.error(f"Failed to send Facebook message: {e}")
+                                # Continue processing even if Facebook message fails
         
         return {"status": "ok"}
         
@@ -348,31 +351,9 @@ async def send_facebook_message(user_id: str, message: str):
             logger.error("FACEBOOK_ACCESS_TOKEN not set")
             return
         
-        # Facebook Messenger API endpoint - use page ID instead of 'me'
-        # First, try to get the page ID from the access token
-        page_id = None
-        try:
-            # Get page info from access token
-            page_url = f"https://graph.facebook.com/v23.0/me?access_token={access_token}"
-            async with httpx.AsyncClient() as client:
-                page_response = await client.get(page_url)
-                if page_response.status_code == 200:
-                    page_data = page_response.json()
-                    page_id = page_data.get('id')
-                    logger.info(f"Using page ID: {page_id}")
-                else:
-                    logger.error(f"Failed to get page info: {page_response.text}")
-                    return
-        except Exception as e:
-            logger.error(f"Error getting page info: {e}")
-            return
-        
-        if not page_id:
-            logger.error("Could not determine page ID from access token")
-            return
-        
-        # Use page ID in the messages endpoint
-        url = f"https://graph.facebook.com/v23.0/{page_id}/messages?access_token={access_token}"
+        # Facebook Messenger API endpoint - use 'me' directly
+        # The access token should be a page access token that allows messaging
+        url = f"https://graph.facebook.com/v23.0/me/messages?access_token={access_token}"
         
         # Message payload
         payload = {

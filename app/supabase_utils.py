@@ -23,11 +23,20 @@ def get_supabase():
 def run_async(coro):
     """Helper to run async functions in sync context"""
     try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(coro)
+        # Check if we're already in an event loop
+        try:
+            loop = asyncio.get_running_loop()
+            # If we're in an event loop, we need to create a task
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, coro)
+                return future.result()
+        except RuntimeError:
+            # No event loop running, we can use asyncio.run
+            return asyncio.run(coro)
+    except Exception as e:
+        print(f"Error in run_async: {e}")
+        return None
 
 # Property Management Functions
 def get_all_property_info():
