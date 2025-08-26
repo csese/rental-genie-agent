@@ -8,7 +8,7 @@ import logging
 import os
 import httpx
 from .agent import handle_message, get_prompt_info, switch_prompt_version, get_conversation_memory_info, clear_conversation_memory, test_slack_notification
-from .utils import get_all_property_info, get_all_tenant_profiles, get_tenant_profile, delete_tenant_profile, update_tenant_status, get_tenants_by_status, get_prospects, get_qualified_prospects, get_active_tenants, get_tenant_status_info
+from .supabase_utils import get_all_property_info, get_all_tenant_profiles, get_tenant_profile, delete_tenant_profile, update_tenant_status, get_tenants_by_status, get_prospects, get_qualified_prospects, get_active_tenants, get_tenant_status_info, add_conversation_message, get_conversation_history, increment_conversation_turns, mark_handoff_completed
 from .conversation_memory import TenantStatus
 import time
 

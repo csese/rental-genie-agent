@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from .enums import TenantStatus
-from .utils import store_tenant_profile, get_tenant_profile, delete_tenant_profile
+from .supabase_utils import store_tenant_profile, get_tenant_profile, delete_tenant_profile
 
 @dataclass
 class TenantProfile:
@@ -147,7 +147,7 @@ class ConversationMemory:
         
         # Sync to persistent storage
         if self.use_persistent_storage:
-            from .utils import update_tenant_status
+            from .supabase_utils import update_tenant_status
             update_tenant_status(session_id, new_status, additional_data)
             self._sync_to_persistent_storage(session_id, profile)
     
@@ -162,7 +162,7 @@ class ConversationMemory:
             ]
         
         # Get from persistent storage
-        from .utils import get_tenants_by_status
+        from .supabase_utils import get_tenants_by_status
         tenant_data_list = get_tenants_by_status(status)
         
         tenants = []
@@ -351,7 +351,7 @@ class ConversationMemory:
             return
         
         try:
-            from .utils import get_all_tenant_profiles
+            from .supabase_utils import get_all_tenant_profiles
             all_profiles = get_all_tenant_profiles()
             
             for profile_data in all_profiles:

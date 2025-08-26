@@ -44,6 +44,18 @@
       "description": "Facebook webhook verify token",
       "required": false
     },
+    "SUPABASE_URL": {
+      "description": "Supabase project URL",
+      "required": true
+    },
+    "SUPABASE_ANON_KEY": {
+      "description": "Supabase anonymous key",
+      "required": true
+    },
+    "SUPABASE_SERVICE_KEY": {
+      "description": "Supabase service role key",
+      "required": true
+    },
     "ENABLE_MOCK_DATA": {
       "description": "Enable mock data for testing",
       "value": "false",
