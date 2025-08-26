@@ -253,7 +253,7 @@ async def facebook_webhook_verification(request: Request):
         challenge = request.query_params.get("hub.challenge")
         
         # Your verify token (set this in Facebook Developer Console)
-        verify_token = "rental-genie-2024"
+        verify_token = os.environ.get("FACEBOOK_VERIFY_TOKEN")
         
         # Check if mode and token are correct
         if mode == "subscribe" and token == verify_token:
