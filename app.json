@@ -32,6 +32,18 @@
       "description": "Slack webhook URL for notifications",
       "required": false
     },
+    "FACEBOOK_ACCESS_TOKEN": {
+      "description": "Facebook Page Access Token for Messenger API",
+      "required": false
+    },
+    "FACEBOOK_APP_SECRET": {
+      "description": "Facebook App Secret for webhook verification",
+      "required": false
+    },
+    "FACEBOOK_VERIFY_TOKEN": {
+      "description": "Facebook webhook verify token",
+      "required": false
+    },
     "ENABLE_MOCK_DATA": {
       "description": "Enable mock data for testing",
       "value": "false",

@@ -132,8 +132,15 @@ def store_tenant_profile(session_id: str, tenant_data: Dict[str, Any]) -> bool:
         # Remove None values
         fields = {k: v for k, v in fields.items() if v is not None}
         
-        # Check if tenant already exists
-        existing_records = table.all(formula=f"{{Session ID}}='{session_id}'")
+        # Check if tenant already exists - try different field names
+        existing_records = None
+        for field_name in ['Session ID', 'session_id', 'SessionID', 'ID', 'Record ID', 'session id']:
+            try:
+                existing_records = table.all(formula=f"{{{field_name}}}='{session_id}'")
+                if existing_records:
+                    break
+            except Exception as e:
+                continue
         
         if existing_records:
             # Update existing record
@@ -158,7 +165,23 @@ def get_tenant_profile(session_id: str) -> Optional[Dict[str, Any]]:
         if not table:
             return None
         
-        records = table.all(formula=f"{{Session ID}}='{session_id}'")
+        # Try different possible field names for session ID
+        possible_fields = ['Session ID', 'session_id', 'SessionID', 'ID', 'Record ID', 'session id']
+        records = None
+        
+        for field_name in possible_fields:
+            try:
+                records = table.all(formula=f"{{{field_name}}}='{session_id}'")
+                if records:
+                    print(f"Found session using field name: {field_name}")
+                    break
+            except Exception as e:
+                print(f"Tried field '{field_name}', got error: {e}")
+                continue
+        
+        if not records:
+            print(f"Session ID '{session_id}' not found with any field name")
+            return None
         
         if records:
             record = records[0]
@@ -347,7 +370,15 @@ def delete_tenant_profile(session_id: str) -> bool:
         if not table:
             return False
         
-        records = table.all(formula=f"{{Session ID}}='{session_id}'")
+        # Try different possible field names for session ID
+        records = None
+        for field_name in ['Session ID', 'session_id', 'SessionID', 'ID', 'Record ID', 'session id']:
+            try:
+                records = table.all(formula=f"{{{field_name}}}='{session_id}'")
+                if records:
+                    break
+            except Exception as e:
+                continue
         
         if records:
             record_id = records[0]['id']
