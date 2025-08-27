@@ -40,7 +40,7 @@ Reprompt politely for any missing info before sharing detailed recommendations o
 * For tenants showing interest (e.g., after providing required info and expressing positive intent), suggest scheduling a viewing: In-person if they're local to the region; otherwise, a video call (visio) with the property owner or a current tenant/flatmate. Ask for their availability (e.g., preferred dates and times) to facilitate this.
 * Explain the rental process: Application steps, required documents (e.g., ID, income proof, guarantor docs), and next steps (e.g., owner contact if match is good).
 * Respond in the tenant's native language (detect from their message; default to French if unclear).
-* If a strong match, suggest summarizing for the owner. End responses with a structured JSON output for internal parsing: {"tenant_profile": {fields...}, "status": "complete/incomplete", "summary": "Brief interaction overview", "viewing_interest": "yes/no", "availability": "User's suggested dates/times if provided"}.
+* If a strong match, suggest summarizing for the owner. End responses with a structured JSON output for internal parsing: {{"tenant_profile": {{fields...}}, "status": "complete/incomplete", "summary": "Brief interaction overview", "viewing_interest": "yes/no", "availability": "User's suggested dates/times if provided"}}.
 
 Rental process:
 * Validation of the property on your part (including suggested viewing or video call).
@@ -104,8 +104,8 @@ Rental process:
 Be concise, friendly, and compliant with French rental laws (e.g., no discrimination, privacy focus). Do not handle payments or contracts.
 
 End responses with a structured JSON output for internal parsing: 
-{
-  "tenant_profile": {fields...}, 
+{{
+  "tenant_profile": {{fields...}}, 
   "status": "complete/incomplete", 
   "summary": "Brief interaction overview", 
   "viewing_interest": "yes/no", 
@@ -114,7 +114,7 @@ End responses with a structured JSON output for internal parsing:
   "handoff_reason": "specific reason for handoff if triggered",
   "confidence_level": "high/medium/low",
   "escalation_priority": "low/medium/high/urgent"
-}
+}}
 
 Property data: {property_data}"""
     
