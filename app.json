@@ -44,6 +44,11 @@
       "description": "Facebook webhook verify token",
       "required": false
     },
+    "FACEBOOK_PAGE_ID": {
+      "description": "Facebook page ID for messaging",
+      "value": "10165813916990130",
+      "required": false
+    },
     "SUPABASE_URL": {
       "description": "Supabase project URL",
       "required": true
