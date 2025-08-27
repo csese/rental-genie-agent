@@ -93,14 +93,18 @@ class ConversationMemory:
                     return self.conversations[session_id]
             
             # Create new session if not found in persistent storage
+            new_tenant_profile = TenantProfile(
+                created_at=datetime.now().isoformat(),
+                last_updated=datetime.now().isoformat()
+            )
+            
             self.conversations[session_id] = {
-                "tenant_profile": TenantProfile(
-                    created_at=datetime.now().isoformat(),
-                    last_updated=datetime.now().isoformat()
-                ),
+                "tenant_profile": new_tenant_profile,
                 "conversation_history": [],
                 "session_created": datetime.now().isoformat()
             }
+            
+            print(f"Created new session with tenant_profile for session {session_id}")
         return self.conversations[session_id]
     
     def update_tenant_profile(self, session_id: str, updates: Dict[str, Any]):
@@ -270,8 +274,14 @@ class ConversationMemory:
             return "No previous conversation found."
         
         session = self.conversations[session_id]
+        
+        # Debug: Check if tenant_profile exists
+        if "tenant_profile" not in session:
+            print(f"Warning: tenant_profile not found in session {session_id}")
+            return "No tenant profile found."
+        
         profile = session["tenant_profile"]
-        history = session["conversation_history"]
+        history = session.get("conversation_history", [])
         
         summary = f"Conversation Summary (Session: {session_id}):\n"
         summary += f"- Total turns: {len(history)}\n"
