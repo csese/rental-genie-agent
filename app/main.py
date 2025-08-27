@@ -353,7 +353,7 @@ async def send_facebook_message(user_id: str, message: str):
         
         # Facebook Messenger API endpoint
         # Use the page ID directly - much simpler and more reliable
-        page_id = os.environ.get("FACEBOOK_PAGE_ID", "10165813916990130")  # Your Facebook page ID
+        page_id = os.environ.get("FACEBOOK_PAGE_ID")  # Your Facebook page ID
         url = f"https://graph.facebook.com/v23.0/{page_id}/messages?access_token={access_token}"
         
         # Message payload
