@@ -354,10 +354,10 @@ async def send_facebook_message(user_id: str, message: str):
         # Facebook Messenger API endpoint - use /me/messages format
         url = "https://graph.facebook.com/v21.0/me/messages"
         
-        # Message payload - using the correct format with JSON strings
+        # Message payload - using the correct format with JSON objects
         payload = {
-            "recipient": f'{{"id":"{user_id}"}}',
-            "message": f'{{"text":"{message}"}}'
+            "recipient": {"id": user_id},
+            "message": {"text": message}
         }
         
         # Headers with Authorization Bearer token

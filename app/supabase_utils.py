@@ -186,7 +186,7 @@ def get_tenant_profile(session_id: str) -> Optional[Dict[str, Any]]:
                 "guarantor_details": tenant.get("guarantor_details"),
                 "viewing_interest": tenant.get("viewing_interest"),
                 "availability": tenant.get("availability"),
-                "language_preference": tenant.get("language_preference"),
+                "language_preference": tenant.get("language_preference", "English"),
                 "status": tenant.get("status", TenantStatus.PROSPECT.value),
                 "property_interest": tenant.get("property_interest"),
                 "application_date": tenant.get("application_date"),

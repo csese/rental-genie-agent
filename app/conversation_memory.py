@@ -560,8 +560,8 @@ def extract_tenant_info(message: str) -> Dict[str, Any]:
     english_count = sum(1 for word in english_words if word in message_lower)
     
     if french_count > english_count:
-        extracted['language_preference'] = 'french'
+        extracted['language_preference'] = 'French'
     elif english_count > french_count:
-        extracted['language_preference'] = 'english'
+        extracted['language_preference'] = 'English'
     
     return extracted
