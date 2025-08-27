@@ -158,7 +158,7 @@ def store_tenant_profile(session_id: str, tenant_data: Dict[str, Any]) -> bool:
         else:
             # Create new tenant
             result = run_async(supabase.create_tenant(session_id, tenant_data))
-            if result:
+            if result is not None:
                 print(f"Created tenant profile for session {session_id}")
                 return True
         

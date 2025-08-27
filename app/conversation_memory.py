@@ -215,6 +215,7 @@ class ConversationMemory:
                 print(f"Failed to sync tenant profile for session {session_id}")
         except Exception as e:
             print(f"Error syncing to persistent storage: {e}")
+            # Don't raise the exception - just log it and continue
     
     def add_conversation_turn(self, session_id: str, user_message: str, agent_response: str, extracted_info: Dict[str, Any]):
         """Add a conversation turn to the history"""
