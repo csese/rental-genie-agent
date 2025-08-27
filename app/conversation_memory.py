@@ -62,6 +62,8 @@ class ConversationMemory:
     
     def get_or_create_session(self, session_id: str) -> Dict[str, Any]:
         """Get existing session or create new one"""
+        print(f"=== get_or_create_session called for session {session_id} ===")
+        
         if session_id not in self.conversations:
             # Try to load from persistent storage first
             if self.use_persistent_storage:
@@ -94,11 +96,16 @@ class ConversationMemory:
                     return self.conversations[session_id]
             
             # Create new session if not found in persistent storage
+            print(f"Creating new session for {session_id}")
+            
             new_tenant_profile = TenantProfile(
                 status=TenantStatus.PROSPECT.value,
                 created_at=datetime.now().isoformat(),
                 last_updated=datetime.now().isoformat()
             )
+            
+            print(f"Created TenantProfile: {new_tenant_profile}")
+            print(f"TenantProfile status: {new_tenant_profile.status}")
             
             self.conversations[session_id] = {
                 "tenant_profile": new_tenant_profile,
@@ -107,6 +114,8 @@ class ConversationMemory:
             }
             
             print(f"Created new session with tenant_profile for session {session_id}")
+            print(f"Session keys: {list(self.conversations[session_id].keys())}")
+            print(f"TenantProfile in session: {self.conversations[session_id]['tenant_profile']}")
         return self.conversations[session_id]
     
     def update_tenant_profile(self, session_id: str, updates: Dict[str, Any]):
@@ -225,7 +234,16 @@ class ConversationMemory:
     
     def add_conversation_turn(self, session_id: str, user_message: str, agent_response: str, extracted_info: Dict[str, Any]):
         """Add a conversation turn to the history"""
+        print(f"=== add_conversation_turn called for session {session_id} ===")
+        print(f"User message: {user_message[:50]}...")
+        print(f"Agent response: {agent_response[:50]}...")
+        
         session = self.get_or_create_session(session_id)
+        print(f"Session keys: {list(session.keys())}")
+        
+        if "tenant_profile" not in session:
+            print(f"ERROR: tenant_profile not found in session during add_conversation_turn!")
+            return
         
         turn = ConversationTurn(
             timestamp=datetime.now().isoformat(),
@@ -272,10 +290,14 @@ class ConversationMemory:
     
     def get_conversation_summary(self, session_id: str) -> str:
         """Get a summary of the conversation for the agent"""
+        print(f"=== get_conversation_summary called for session {session_id} ===")
+        
         if session_id not in self.conversations:
+            print(f"Session {session_id} not found in conversations")
             return "No previous conversation found."
         
         session = self.conversations[session_id]
+        print(f"Session keys: {list(session.keys())}")
         
         # Debug: Check if tenant_profile exists
         if "tenant_profile" not in session:
@@ -283,7 +305,11 @@ class ConversationMemory:
             return "No tenant profile found."
         
         profile = session["tenant_profile"]
+        print(f"Profile type: {type(profile)}")
+        print(f"Profile: {profile}")
+        
         history = session.get("conversation_history", [])
+        print(f"History length: {len(history)}")
         
         summary = f"Conversation Summary (Session: {session_id}):\n"
         summary += f"- Total turns: {len(history)}\n"

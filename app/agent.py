@@ -313,6 +313,13 @@ def handle_message(user_input: str, property_data: str, session_id: str = None, 
         return clean_response
         
     except Exception as e:
+        import traceback
+        print(f"=== ERROR IN handle_message ===")
+        print(f"Error: {str(e)}")
+        print(f"Error type: {type(e)}")
+        print(f"Full traceback:")
+        traceback.print_exc()
+        print(f"=== END ERROR ===")
         return f"I'm having trouble processing your request right now. Error: {str(e)}"
 
 def get_prompt_info():
