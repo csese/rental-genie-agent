@@ -79,6 +79,7 @@ class ConversationMemory:
                         viewing_interest=persistent_profile.get("viewing_interest"),
                         availability=persistent_profile.get("availability"),
                         language_preference=persistent_profile.get("language_preference"),
+                        status=persistent_profile.get("status", TenantStatus.PROSPECT.value),
                         created_at=persistent_profile.get("created_at"),
                         last_updated=persistent_profile.get("last_updated"),
                         conversation_turns=persistent_profile.get("conversation_turns", 0)
@@ -94,6 +95,7 @@ class ConversationMemory:
             
             # Create new session if not found in persistent storage
             new_tenant_profile = TenantProfile(
+                status=TenantStatus.PROSPECT.value,
                 created_at=datetime.now().isoformat(),
                 last_updated=datetime.now().isoformat()
             )
@@ -321,7 +323,14 @@ class ConversationMemory:
         if session_id not in self.conversations:
             return ["age", "sex", "occupation", "move_in_date", "rental_duration", "guarantor_status"]
         
-        profile = self.conversations[session_id]["tenant_profile"]
+        session = self.conversations[session_id]
+        
+        # Debug: Check if tenant_profile exists
+        if "tenant_profile" not in session:
+            print(f"Warning: tenant_profile not found in get_missing_information for session {session_id}")
+            return ["age", "sex", "occupation", "move_in_date", "rental_duration", "guarantor_status"]
+        
+        profile = session["tenant_profile"]
         missing = []
         
         if not profile.age:
@@ -341,7 +350,11 @@ class ConversationMemory:
     
     def is_profile_complete(self, session_id: str) -> bool:
         """Check if tenant profile is complete"""
-        return len(self.get_missing_information(session_id)) == 0
+        try:
+            return len(self.get_missing_information(session_id)) == 0
+        except Exception as e:
+            print(f"Error in is_profile_complete for session {session_id}: {e}")
+            return False
     
     def clear_session(self, session_id: str):
         """Clear a session (for testing or privacy)"""
