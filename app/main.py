@@ -351,20 +351,24 @@ async def send_facebook_message(user_id: str, message: str):
             logger.error("FACEBOOK_ACCESS_TOKEN not set")
             return
         
-        # Facebook Messenger API endpoint
-        # Use the page ID directly - much simpler and more reliable
-        page_id = os.environ.get("FACEBOOK_PAGE_ID")  # Your Facebook page ID
-        url = f"https://graph.facebook.com/v23.0/{page_id}/messages?access_token={access_token}"
+        # Facebook Messenger API endpoint - use /me/messages format
+        url = "https://graph.facebook.com/v21.0/me/messages"
         
-        # Message payload
+        # Message payload - using the correct format with JSON strings
         payload = {
-            "recipient": {"id": user_id},
-            "message": {"text": message}
+            "recipient": f'{{"id":"{user_id}"}}',
+            "message": f'{{"text":"{message}"}}'
+        }
+        
+        # Headers with Authorization Bearer token
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
         }
         
         # Send message
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload)
+            response = await client.post(url, json=payload, headers=headers)
             
             if response.status_code == 200:
                 logger.info(f"Message sent successfully to user {user_id}")
