@@ -89,12 +89,13 @@ def detect_handoff_triggers(user_input: str, session_id: str = None) -> dict:
         triggers["handoff_reason"] = "Emotional situation detected"
         triggers["escalation_priority"] = "high"
     
-    # Language barrier detection
+    # Language barrier detection - only trigger for actual communication difficulties
     if session_id:
         profile = conversation_memory.get_tenant_profile(session_id)
         if profile and profile.language_preference:
-            # If language preference is set but communication seems difficult
-            if len(user_input.split()) < 3 or any(word in user_input_lower for word in ["sorry", "not understand", "confused", "help"]):
+            # Only trigger for actual communication difficulties, not simple greetings
+            communication_difficulty_keywords = ["sorry", "not understand", "confused", "help", "don't understand", "can't understand"]
+            if any(word in user_input_lower for word in communication_difficulty_keywords):
                 triggers["handoff_triggered"] = True
                 triggers["handoff_reason"] = "Potential language barrier"
                 triggers["escalation_priority"] = "medium"
@@ -251,19 +252,31 @@ def handle_message(user_input: str, property_data: str, session_id: str = None, 
             enhanced_prompt = base_prompt
         
         # Get agent response
+        print(f"=== AGENT DECISION PROCESS ===")
+        print(f"User input: '{user_input}'")
+        print(f"Language detection: User said '{user_input}' - should respond in {'French' if any(word in user_input.lower() for word in ['bonjour', 'salut', 'merci', 'oui', 'non', 'je', 'tu', 'vous']) else 'English'}")
+        print(f"Enhanced prompt length: {len(enhanced_prompt)} characters")
+        
         response = chain.predict(system=enhanced_prompt, input=user_input)
+        print(f"Raw AI response: '{response[:200]}...'")
         
         # Extract JSON data from response
         json_data = extract_json_from_response(response)
+        print(f"Extracted JSON data: {json_data}")
         
         # Detect handoff triggers
         handoff_triggers = detect_handoff_triggers(user_input, session_id)
+        print(f"Handoff triggers detected: {handoff_triggers}")
         
         # Check if handoff is triggered (either by detection or agent response)
         handoff_triggered = (
             handoff_triggers["handoff_triggered"] or 
             json_data.get("handoff_triggered", "false").lower() == "true"
         )
+        print(f"Final handoff decision: {handoff_triggered}")
+        print(f"Handoff reason: {json_data.get('handoff_reason', 'None')}")
+        print(f"Confidence level: {json_data.get('confidence_level', 'None')}")
+        print(f"=== END AGENT DECISION PROCESS ===")
         
         # Combine handoff data
         final_handoff_data = {
@@ -279,6 +292,12 @@ def handle_message(user_input: str, property_data: str, session_id: str = None, 
         
         # Handle handoff if triggered
         if handoff_triggered and session_id:
+            print(f"=== HANDOFF EXECUTION ===")
+            print(f"Handoff triggered: {handoff_triggered}")
+            print(f"Handoff reason: {final_handoff_data['handoff_reason']}")
+            print(f"Confidence level: {final_handoff_data['confidence_level']}")
+            print(f"Escalation priority: {final_handoff_data['escalation_priority']}")
+            
             # Mark session as handed off
             session = conversation_memory.get_or_create_session(session_id)
             session["handoff_completed"] = True
@@ -289,9 +308,13 @@ def handle_message(user_input: str, property_data: str, session_id: str = None, 
             
             # Return final response to tenant (don't mention handoff)
             if json_data.get("summary"):
-                return f"Thank you for your inquiry. {json_data['summary']} The property owner will be in touch with you shortly to assist with your specific needs."
+                final_response = f"Thank you for your inquiry. {json_data['summary']} The property owner will be in touch with you shortly to assist with your specific needs."
             else:
-                return "Thank you for your inquiry. The property owner will be in touch with you shortly to assist with your specific needs."
+                final_response = "Thank you for your inquiry. The property owner will be in touch with you shortly to assist with your specific needs."
+            
+            print(f"Final handoff response: '{final_response}'")
+            print(f"=== END HANDOFF EXECUTION ===")
+            return final_response
         
         # Store conversation turn if session_id is provided
         if session_id:
@@ -309,6 +332,11 @@ def handle_message(user_input: str, property_data: str, session_id: str = None, 
             json_match = re.search(r'\{.*\}', response, re.DOTALL)
             if json_match:
                 clean_response = response.replace(json_match.group(0), "").strip()
+        
+        print(f"=== NORMAL RESPONSE PATH ===")
+        print(f"Clean response: '{clean_response}'")
+        print(f"Response length: {len(clean_response)} characters")
+        print(f"=== END NORMAL RESPONSE PATH ===")
         
         return clean_response
         
