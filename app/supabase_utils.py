@@ -71,8 +71,9 @@ def get_all_property_info():
         
     except Exception as e:
         print(f"Error loading property data from Supabase: {e}")
-        # Return fallback property data for testing
-        return [{"fields": {"Name": "Sample Property", "Address": "123 Main St", "Rent": "$1500/month", "Available": "January 2024"}}]
+        print("⚠️  WARNING: Using fallback property data. Check your Supabase connection.")
+        # Return empty list instead of fake data to avoid confusion
+        return []
 
 def get_property_by_id(record_id):
     """Get a specific property by record ID"""

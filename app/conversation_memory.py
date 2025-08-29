@@ -9,41 +9,9 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from .enums import TenantStatus
-from .supabase_utils import store_tenant_profile, get_tenant_profile, delete_tenant_profile
+from .storage_interface import StorageProvider, TenantProfile
 
-@dataclass
-class TenantProfile:
-    """Structured tenant profile data"""
-    # Basic information
-    age: Optional[int] = None
-    sex: Optional[str] = None
-    occupation: Optional[str] = None
-    
-    # Rental preferences
-    move_in_date: Optional[str] = None
-    rental_duration: Optional[str] = None
-    
-    # Financial/legal
-    guarantor_status: Optional[str] = None
-    guarantor_details: Optional[str] = None
-    
-    # Additional context
-    viewing_interest: Optional[bool] = None
-    availability: Optional[str] = None
-    language_preference: Optional[str] = None
-    
-    # Status and workflow
-    status: str = TenantStatus.PROSPECT.value  # Use enum default value
-    property_interest: Optional[str] = None
-    application_date: Optional[str] = None
-    lease_start_date: Optional[str] = None
-    lease_end_date: Optional[str] = None
-    notes: Optional[str] = None
-    
-    # Metadata
-    created_at: Optional[str] = None
-    last_updated: Optional[str] = None
-    conversation_turns: int = 0
+# TenantProfile is now imported from storage_interface
 
 @dataclass
 class ConversationTurn:
@@ -56,9 +24,10 @@ class ConversationTurn:
 class ConversationMemory:
     """Manages conversation memory and tenant profiles"""
     
-    def __init__(self, use_persistent_storage: bool = True):
+    def __init__(self, storage_provider: StorageProvider = None, use_persistent_storage: bool = True):
         self.conversations: Dict[str, Dict[str, Any]] = {}
         self.use_persistent_storage = use_persistent_storage
+        self.storage_provider = storage_provider
     
     def get_or_create_session(self, session_id: str) -> Dict[str, Any]:
         """Get existing session or create new one"""
@@ -66,8 +35,8 @@ class ConversationMemory:
         
         if session_id not in self.conversations:
             # Try to load from persistent storage first
-            if self.use_persistent_storage:
-                persistent_profile = get_tenant_profile(session_id)
+            if self.use_persistent_storage and self.storage_provider:
+                persistent_profile = self.storage_provider.get_tenant_profile(session_id)
                 if persistent_profile:
                     # Reconstruct TenantProfile from persistent data
                     tenant_profile = TenantProfile(
@@ -138,6 +107,7 @@ class ConversationMemory:
         
         # Sync to persistent storage
         if self.use_persistent_storage:
+            from .supabase_utils import store_tenant_profile
             self._sync_to_persistent_storage(session_id, profile)
     
     def _should_auto_qualify(self, profile: TenantProfile) -> bool:
@@ -222,8 +192,9 @@ class ConversationMemory:
     def _sync_to_persistent_storage(self, session_id: str, profile: TenantProfile):
         """Sync tenant profile to persistent storage"""
         try:
-            profile_dict = asdict(profile)
-            success = store_tenant_profile(session_id, profile_dict)
+            if self.storage_provider:
+                profile_dict = asdict(profile)
+                success = self.storage_provider.store_tenant_profile(session_id, profile_dict)
             if success:
                 print(f"Synced tenant profile to persistent storage for session {session_id}")
             else:
@@ -267,8 +238,8 @@ class ConversationMemory:
             return self.conversations[session_id]["tenant_profile"]
         
         # Try to load from persistent storage if not in memory
-        if self.use_persistent_storage:
-            persistent_profile = get_tenant_profile(session_id)
+        if self.use_persistent_storage and self.storage_provider:
+            persistent_profile = self.storage_provider.get_tenant_profile(session_id)
             if persistent_profile:
                 return TenantProfile(
                     age=persistent_profile.get("age"),
@@ -392,8 +363,8 @@ class ConversationMemory:
             del self.conversations[session_id]
         
         # Also delete from persistent storage
-        if self.use_persistent_storage:
-            delete_tenant_profile(session_id)
+        if self.use_persistent_storage and self.storage_provider:
+            self.storage_provider.delete_tenant_profile(session_id)
     
     def get_all_sessions(self) -> Dict[str, Dict[str, Any]]:
         """Get all active sessions (for debugging)"""
@@ -401,12 +372,11 @@ class ConversationMemory:
     
     def load_all_from_persistent_storage(self):
         """Load all tenant profiles from persistent storage into memory"""
-        if not self.use_persistent_storage:
+        if not self.use_persistent_storage or not self.storage_provider:
             return
         
         try:
-            from .supabase_utils import get_all_tenant_profiles
-            all_profiles = get_all_tenant_profiles()
+            all_profiles = self.storage_provider.get_all_tenant_profiles()
             
             for profile_data in all_profiles:
                 session_id = profile_data.get("session_id")
@@ -435,6 +405,7 @@ class ConversationMemory:
             print(f"Error loading from persistent storage: {e}")
 
 # Global conversation memory instance with persistent storage enabled
+# Note: Storage provider will be injected when needed to avoid circular imports
 conversation_memory = ConversationMemory(use_persistent_storage=True)
 
 def extract_tenant_info(message: str) -> Dict[str, Any]:

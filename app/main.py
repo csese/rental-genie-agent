@@ -7,9 +7,11 @@ from typing import Optional, Dict, Any, List
 import logging
 import os
 import httpx
+
+from app.supabase_utils import delete_tenant_profile, get_active_tenants, get_all_tenant_profiles, get_prospects, get_qualified_prospects, get_tenant_profile, get_tenant_status_info, get_tenants_by_status, update_tenant_status
 from .agent import handle_message, get_prompt_info, switch_prompt_version, get_conversation_memory_info, clear_conversation_memory, test_slack_notification
-from .supabase_utils import get_all_property_info, get_all_tenant_profiles, get_tenant_profile, delete_tenant_profile, update_tenant_status, get_tenants_by_status, get_prospects, get_qualified_prospects, get_active_tenants, get_tenant_status_info, add_conversation_message, get_conversation_history, increment_conversation_turns, mark_handoff_completed
-from .conversation_memory import TenantStatus
+from .supabase_storage import SupabaseStorageProvider
+from .conversation_memory import TenantStatus, conversation_memory
 import time
 
 # Configure logging
@@ -119,21 +121,33 @@ class HandoffTestRequest(BaseModel):
     handoff_reason: str
     escalation_priority: str = "medium"
 
-# Global property data cache
+# Global storage provider and property data cache
+storage_provider = None
 property_data_cache = None
+
+def get_storage_provider():
+    """Get or create storage provider"""
+    global storage_provider
+    if storage_provider is None:
+        storage_provider = SupabaseStorageProvider()
+        # Inject storage provider into conversation memory
+        conversation_memory.storage_provider = storage_provider
+    return storage_provider
 
 def load_property_data():
     """Load and cache property data"""
     global property_data_cache
     try:
         if property_data_cache is None:
-            property_data_cache = get_all_property_info()
+            provider = get_storage_provider()
+            property_data_cache = provider.get_all_properties()
             logger.info("Property data loaded successfully")
         return property_data_cache
     except Exception as e:
         logger.error(f"Error loading property data: {e}")
-        # Provide fallback property data for testing
-        return [{"fields": {"Name": "Sample Property", "Address": "123 Main St", "Rent": "$1500/month", "Available": "January 2024"}}]
+        logger.error("⚠️  WARNING: No property data available. Check your Supabase connection.")
+        # Return empty list instead of fake data
+        return []
 
 @app.get("/", response_model=HealthResponse)
 async def root():
