@@ -447,10 +447,32 @@ def handle_message(user_input: str, property_data: str, session_id: str = None, 
             # Get conversation summary for context
             conversation_context = conversation_memory.get_conversation_summary(session_id)
             
-            # Get missing information to guide the agent
-            missing_info = conversation_memory.get_missing_information(session_id)
+            # Get missing information to guide the agent (only if more than 2 fields missing)
+            missing_info = conversation_memory.get_missing_information(session_id, min_threshold=3)
             if missing_info:
                 conversation_context += f"\n\nMissing required information: {', '.join(missing_info)}"
+        
+        # Detect if user expresses property interest
+        interest_keywords = ["intéressé", "interested", "chambre", "room", "colocation", "available", "disponible", "louer", "rent", "location"]
+        shows_interest = any(keyword in user_input.lower() for keyword in interest_keywords)
+        
+        if shows_interest and conversation_context:
+            # If partial info available, attempt to filter properties
+            try:
+                import json
+                property_dict = json.loads(property_data)  # Or parse as needed
+                filtered_properties = []  # Simple filter example
+                profile = conversation_memory.get_tenant_profile(session_id)
+                if profile and profile.move_in_date:
+                    for prop in property_dict.get("properties", []):
+                        if prop.get("availability_start") <= profile.move_in_date:
+                            filtered_properties.append(prop)
+                if filtered_properties:
+                    conversation_context += f"\n\nAvailable properties matching partial info: {json.dumps(filtered_properties, ensure_ascii=False)}"
+                else:
+                    conversation_context += f"\n\nUser shows interest in properties—prioritize sharing details from property_data."
+            except:
+                conversation_context += f"\n\nUser shows interest in properties—prioritize sharing details from property_data."
         
         # Create enhanced system prompt with conversation context
         base_prompt = get_system_prompt(property_data, prompt_version)

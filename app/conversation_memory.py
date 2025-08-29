@@ -344,8 +344,8 @@ class ConversationMemory:
         
         return summary
     
-    def get_missing_information(self, session_id: str) -> List[str]:
-        """Get list of missing required information"""
+    def get_missing_information(self, session_id: str, min_threshold: int = 0) -> List[str]:
+        """Get list of missing required information with optional threshold"""
         if session_id not in self.conversations:
             return ["age", "sex", "occupation", "move_in_date", "rental_duration", "guarantor_status"]
         
@@ -371,6 +371,10 @@ class ConversationMemory:
             missing.append("rental_duration")
         if not profile.guarantor_status:
             missing.append("guarantor_status")
+        
+        # Apply threshold: if missing info is minor (less than threshold), return empty list
+        if min_threshold > 0 and len(missing) < min_threshold:
+            return []
         
         return missing
     
