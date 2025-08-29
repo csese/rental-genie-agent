@@ -8,7 +8,6 @@ import logging
 import os
 import httpx
 
-from app.supabase_utils import delete_tenant_profile, get_active_tenants, get_all_tenant_profiles, get_prospects, get_qualified_prospects, get_tenant_profile, get_tenant_status_info, get_tenants_by_status, update_tenant_status
 from .agent import handle_message, get_prompt_info, switch_prompt_version, get_conversation_memory_info, clear_conversation_memory, test_slack_notification
 from .supabase_storage import SupabaseStorageProvider
 from .conversation_memory import TenantStatus, conversation_memory
@@ -549,9 +548,10 @@ async def bulk_update_tenants(request: BulkTenantUpdateRequest):
         updated_count = 0
         failed_updates = []
         
+        provider = get_storage_provider()
         for session_id in request.session_ids:
             try:
-                success = update_tenant_status(session_id, request.status, request.additional_data)
+                success = provider.update_tenant_status(session_id, request.status, request.additional_data)
                 if success:
                     updated_count += 1
                 else:
@@ -577,10 +577,11 @@ async def bulk_update_tenants(request: BulkTenantUpdateRequest):
 async def get_all_tenants(status: Optional[str] = None):
     """Get all tenant profiles from persistent storage, optionally filtered by status"""
     try:
+        provider = get_storage_provider()
         if status:
-            tenants_data = get_tenants_by_status(status)
+            tenants_data = provider.get_all_tenant_profiles(status)
         else:
-            tenants_data = get_all_tenant_profiles()
+            tenants_data = provider.get_all_tenant_profiles()
         
         tenants = []
         for tenant_data in tenants_data:
@@ -622,7 +623,8 @@ async def get_all_tenants(status: Optional[str] = None):
 async def get_tenant_by_session(session_id: str):
     """Get a specific tenant profile by session ID"""
     try:
-        tenant_data = get_tenant_profile(session_id)
+        provider = get_storage_provider()
+        tenant_data = provider.get_tenant_profile(session_id)
         
         if not tenant_data:
             raise HTTPException(status_code=404, detail="Tenant profile not found")
@@ -670,7 +672,8 @@ async def update_tenant_status_endpoint(session_id: str, request: StatusUpdateRe
                 detail=f"Invalid status '{request.status}'. Must be one of: {valid_statuses}"
             )
         
-        success = update_tenant_status(session_id, request.status, request.additional_data)
+        provider = get_storage_provider()
+        success = provider.update_tenant_status(session_id, request.status, request.additional_data)
         
         if not success:
             raise HTTPException(status_code=404, detail="Tenant profile not found")
@@ -688,7 +691,8 @@ async def update_tenant_status_endpoint(session_id: str, request: StatusUpdateRe
 async def get_tenant_stats():
     """Get statistics about tenants by status"""
     try:
-        all_tenants = get_all_tenant_profiles()
+        provider = get_storage_provider()
+        all_tenants = provider.get_all_tenant_profiles()
         
         # Initialize stats with all possible statuses
         stats = {
@@ -719,7 +723,14 @@ async def get_tenant_stats():
 async def get_tenant_status_info_endpoint():
     """Get information about all available tenant statuses"""
     try:
-        status_info = get_tenant_status_info()
+        # This endpoint provides static information about tenant statuses
+        # No need for storage provider as it's just enum information
+        from .enums import TenantStatus
+        status_info = {
+            "available_statuses": TenantStatus.get_all_values(),
+            "status_descriptions": TenantStatus.get_all_descriptions(),
+            "status_display_names": TenantStatus.get_all_display_names()
+        }
         return TenantStatusInfoResponse(**status_info)
         
     except Exception as e:
@@ -730,7 +741,8 @@ async def get_tenant_status_info_endpoint():
 async def get_prospects_endpoint():
     """Get all prospect tenants"""
     try:
-        prospects_data = get_prospects()
+        provider = get_storage_provider()
+        prospects_data = provider.get_all_tenant_profiles("prospect")
         
         prospects = []
         for tenant_data in prospects_data:
@@ -759,7 +771,8 @@ async def get_prospects_endpoint():
 async def get_qualified_prospects_endpoint():
     """Get all qualified prospects"""
     try:
-        qualified_data = get_qualified_prospects()
+        provider = get_storage_provider()
+        qualified_data = provider.get_all_tenant_profiles("qualified")
         
         qualified = []
         for tenant_data in qualified_data:
@@ -788,7 +801,8 @@ async def get_qualified_prospects_endpoint():
 async def get_active_tenants_endpoint():
     """Get all active tenants"""
     try:
-        active_data = get_active_tenants()
+        provider = get_storage_provider()
+        active_data = provider.get_all_tenant_profiles("active_tenant")
         
         active = []
         for tenant_data in active_data:
@@ -815,7 +829,8 @@ async def get_active_tenants_endpoint():
 async def delete_tenant(session_id: str):
     """Delete a tenant profile by session ID"""
     try:
-        success = delete_tenant_profile(session_id)
+        provider = get_storage_provider()
+        success = provider.delete_tenant_profile(session_id)
         
         if not success:
             raise HTTPException(status_code=404, detail="Tenant profile not found")

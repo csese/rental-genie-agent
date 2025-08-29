@@ -93,7 +93,19 @@ class SupabaseClient:
     async def update_tenant(self, session_id: str, updates: Dict[str, Any]) -> bool:
         """Update tenant profile"""
         try:
-            await self._make_request("PUT", f"tenants?session_id=eq.{session_id}", updates)
+            # First get the tenant to get the id
+            tenant = await self.get_tenant(session_id)
+            if not tenant:
+                print(f"Tenant not found for session_id: {session_id}")
+                return False
+            
+            tenant_id = tenant.get("id")
+            if not tenant_id:
+                print(f"No id found for tenant with session_id: {session_id}")
+                return False
+            
+            # Update using the primary key (id)
+            await self._make_request("PUT", f"tenants?id=eq.{tenant_id}", updates)
             return True
         except Exception as e:
             print(f"Error updating tenant: {e}")
@@ -139,7 +151,19 @@ class SupabaseClient:
     async def update_chat_session(self, session_id: str, updates: Dict[str, Any]) -> bool:
         """Update chat session"""
         try:
-            await self._make_request("PUT", f"chat_sessions?session_id=eq.{session_id}", updates)
+            # First get the chat session to get the id
+            chat_session = await self.get_chat_session(session_id)
+            if not chat_session:
+                print(f"Chat session not found for session_id: {session_id}")
+                return False
+            
+            chat_session_id = chat_session.get("id")
+            if not chat_session_id:
+                print(f"No id found for chat session with session_id: {session_id}")
+                return False
+            
+            # Update using the primary key (id)
+            await self._make_request("PUT", f"chat_sessions?id=eq.{chat_session_id}", updates)
             return True
         except Exception as e:
             print(f"Error updating chat session: {e}")
