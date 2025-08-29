@@ -46,7 +46,7 @@
     },
     "FACEBOOK_PAGE_ID": {
       "description": "Facebook page ID for messaging",
-      "value": "10165813916990130",
+      "value": "110751665255706",
       "required": false
     },
     "SUPABASE_URL": {

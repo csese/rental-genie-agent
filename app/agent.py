@@ -2,6 +2,9 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.memory import BaseMemory
 from langchain_openai import ChatOpenAI
 from langchain.chains import LLMChain
+from langchain_core.output_parsers import PydanticOutputParser
+from pydantic import BaseModel, Field
+from typing import Optional, Dict, List, Any
 import os
 import json
 import re
@@ -17,6 +20,23 @@ load_dotenv()
 llm = None
 chain = None
 llm_available = None
+extraction_chain = None
+
+# Pydantic models for LLM extraction
+class ExtractedField(BaseModel):
+    """Individual extracted field with confidence score"""
+    value: Optional[str] = Field(None, description="The extracted value")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score between 0.0 and 1.0")
+
+class TenantInfo(BaseModel):
+    """Complete tenant information extraction result"""
+    fields: Dict[str, ExtractedField] = Field(default_factory=dict, description="Extracted fields with confidence scores")
+    language_preference: Optional[str] = Field(None, description="Detected language preference: French, English, or Other")
+    overall_confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="Overall confidence score")
+    updated_fields: List[str] = Field(default_factory=list, description="List of field names that were updated")
+    
+    class Config:
+        extra = "allow"  # Allow extra fields to prevent parsing errors
 
 def get_llm():
     """Get or create the LLM instance"""
@@ -36,6 +56,195 @@ def get_llm():
             chain = None
     
     return llm_available, chain
+
+def get_extraction_chain():
+    """Get or create the extraction chain"""
+    global extraction_chain, llm
+    
+    if extraction_chain is None:
+        try:
+            # Get LLM instance
+            llm_available, _ = get_llm()
+            if not llm_available:
+                return None
+            
+            # Create extraction prompt
+            extraction_prompt = ChatPromptTemplate.from_messages([
+                ("system", """You are an expert information extraction system for rental property inquiries. Your task is to extract specific tenant information from user messages.
+
+FIELD DEFINITIONS:
+- move_in_date: When the tenant wants to move in (e.g., "January 2024", "next month", "asap")
+- rental_duration: How long they want to rent (e.g., "12 months", "6 months", "long term")
+- age: Tenant's age as an integer
+- sex: "male" or "female"
+- occupation: Their job or profession
+- guarantor_status: "yes", "no", "visale", or "unknown"
+- language_preference: "French", "English", or "Other"
+
+CONSTRAINTS:
+1. Extract ONLY from the current message - no inferences or external knowledge
+2. Only extract fields that are explicitly mentioned or corrected
+3. Do not override known information unless user provides new/conflicting info
+4. Focus on missing fields and fields implied by recent context
+5. Provide confidence scores (0.0-1.0) for each field
+6. Only return fields with confidence >= 0.7
+7. If no relevant information is found, return empty fields with low confidence
+
+FEW-SHOT EXAMPLES:
+1. Message: "I'm 25 now." | Known: age=24 | Missing: sex | Focus: age → Update age to 25
+2. Message: "No, I meant female." | Known: sex=male | Missing: occupation | Focus: sex → Update sex to female  
+3. Message: "Hello." | Known: all | Missing: none | Focus: none → Empty fields, detect language
+4. Message: "Je suis étudiant, 22 ans, pour 9 mois à partir d'octobre." | Known: none | Missing: all | Focus: all → Extract age=22, occupation="étudiant", etc., language="French"
+5. Message: "Bonjour, je suis une femme de 28 ans, médecin." | Known: none | Missing: all | Focus: all → Extract sex="female", age=28, occupation="médecin", language="French"
+6. Message: "J'ai 24 ans maintenant." | Known: age=23 | Missing: occupation | Focus: age → Update age to 24, language="French"
+7. Message: "Non, je voulais dire homme." | Known: sex=female | Missing: guarantor_status | Focus: sex → Update sex to "male", language="French"
+8. Message: "Je travaille comme ingénieur et j'ai 31 ans." | Known: none | Missing: all | Focus: all → Extract occupation="ingénieur", age=31, language="French"
+
+KNOWN INFORMATION: {known_info}
+MISSING FIELDS: {missing_fields}
+FOCUS FIELDS: {focus_fields}
+RECENT CONTEXT: {recent_context}
+
+Extract information from this message: {user_input}
+
+IMPORTANT: You must return a valid JSON object with exactly this structure:
+{{
+  "fields": {{
+    "age": {{"value": "25", "confidence": 0.9}},
+    "occupation": {{"value": "software engineer", "confidence": 0.8}}
+  }},
+  "language_preference": "English",
+  "overall_confidence": 0.85,
+  "updated_fields": ["age", "occupation"]
+}}
+
+Do not include any text before or after the JSON object."""),
+                ("human", "{user_input}")
+            ])
+            
+            # Create output parser
+            parser = PydanticOutputParser(pydantic_object=TenantInfo)
+            
+            # Create extraction chain
+            extraction_chain = extraction_prompt | llm | parser
+            
+            print("Extraction chain created successfully")
+            
+        except Exception as e:
+            print(f"Warning: Extraction chain not configured: {e}")
+            extraction_chain = None
+    
+    return extraction_chain
+
+def extract_tenant_info_llm(user_input: str, session_id: str = None) -> Dict[str, Any]:
+    """
+    Extract tenant information using LLM-based extraction
+    """
+    try:
+        print(f"=== LLM EXTRACTION START ===")
+        print(f"User input: '{user_input}'")
+        print(f"Session ID: {session_id}")
+        
+        # Get extraction chain
+        chain = get_extraction_chain()
+        if not chain:
+            print("Extraction chain not available, falling back to rule-based extraction")
+            return extract_tenant_info(user_input)
+        
+        # Get current tenant profile
+        known_info = {}
+        missing_fields = []
+        focus_fields = []
+        recent_context = ""
+        
+        if session_id:
+            profile = conversation_memory.get_tenant_profile(session_id)
+            if profile:
+                # Build known info summary
+                known_info = {
+                    "age": profile.age,
+                    "sex": profile.sex,
+                    "occupation": profile.occupation,
+                    "move_in_date": profile.move_in_date,
+                    "rental_duration": profile.rental_duration,
+                    "guarantor_status": profile.guarantor_status,
+                    "language_preference": profile.language_preference
+                }
+                
+                # Get missing fields
+                missing_fields = conversation_memory.get_missing_information(session_id)
+                
+                # Focus fields = missing fields + fields implied by recent context
+                focus_fields = missing_fields.copy()
+                
+                # Get recent conversation context (last 2 turns)
+                session = conversation_memory.get_or_create_session(session_id)
+                history = session.get("conversation_history", [])
+                if history:
+                    recent_turns = history[-2:]  # Last 2 turns
+                    recent_context = "\n".join([
+                        f"User: {turn['user_message']}\nAgent: {turn['agent_response']}"
+                        for turn in recent_turns
+                    ])
+        
+        # If no session or new session, focus on all fields
+        if not session_id or not known_info:
+            focus_fields = ["age", "sex", "occupation", "move_in_date", "rental_duration", "guarantor_status", "language_preference"]
+        
+        print(f"Known info: {known_info}")
+        print(f"Missing fields: {missing_fields}")
+        print(f"Focus fields: {focus_fields}")
+        print(f"Recent context: {recent_context[:100]}...")
+        
+        # Run extraction
+        result = chain.invoke({
+            "known_info": str(known_info),
+            "missing_fields": str(missing_fields),
+            "focus_fields": str(focus_fields),
+            "recent_context": recent_context,
+            "user_input": user_input
+        })
+        
+        print(f"Raw LLM result: {result}")
+        
+        # Process results
+        extracted = {}
+        updated_fields = []
+        
+        for field_name, field_data in result.fields.items():
+            if field_data.confidence >= 0.7:  # Only use high-confidence extractions
+                value = field_data.value
+                if value and value.strip():
+                    # Type conversion for specific fields
+                    if field_name == "age" and value.isdigit():
+                        extracted[field_name] = int(value)
+                    else:
+                        extracted[field_name] = value
+                    updated_fields.append(field_name)
+                    print(f"Extracted {field_name}: {value} (confidence: {field_data.confidence})")
+                else:
+                    print(f"Skipped {field_name}: empty value")
+            else:
+                print(f"Skipped {field_name}: low confidence ({field_data.confidence})")
+        
+        # Add language preference if detected
+        if result.language_preference:
+            extracted["language_preference"] = result.language_preference
+            print(f"Detected language: {result.language_preference}")
+        
+        print(f"Final extracted info: {extracted}")
+        print(f"Updated fields: {updated_fields}")
+        print(f"Overall confidence: {result.overall_confidence}")
+        print(f"=== LLM EXTRACTION END ===")
+        
+        return extracted
+        
+    except Exception as e:
+        print(f"Error in LLM extraction: {e}")
+        import traceback
+        traceback.print_exc()
+        print("Falling back to rule-based extraction")
+        return extract_tenant_info(user_input)
 
 def extract_json_from_response(response: str) -> dict:
     """Extract JSON data from the agent response"""
@@ -215,8 +424,8 @@ def handle_message(user_input: str, property_data: str, session_id: str = None, 
             if session.get("handoff_completed", False):
                 return "I've connected you with the property owner. They will be in touch with you shortly to assist with your inquiry."
         
-        # Extract information from the user's message
-        extracted_info = extract_tenant_info(user_input)
+        # Extract information from the user's message using LLM-based extraction
+        extracted_info = extract_tenant_info_llm(user_input, session_id)
         
         # Check if this is a new session (first message)
         is_new_session = False
