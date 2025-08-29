@@ -11,6 +11,7 @@ import httpx
 from .agent import handle_message, get_prompt_info, switch_prompt_version, get_conversation_memory_info, clear_conversation_memory, test_slack_notification
 from .supabase_storage import SupabaseStorageProvider
 from .conversation_memory import TenantStatus, conversation_memory
+from .property_management import get_property_manager, PropertyStatus
 import time
 
 # Configure logging
@@ -426,11 +427,10 @@ async def generic_webhook(request: Request):
 
 @app.get("/properties")
 async def get_properties():
-    """Endpoint to get available properties"""
+    """Endpoint to get all properties"""
     try:
-        property_data = load_property_data()
-        if not property_data:
-            raise HTTPException(status_code=500, detail="Property data not available")
+        property_manager = get_property_manager()
+        property_data = await property_manager.get_all_properties()
         
         return {"properties": property_data, "count": len(property_data)}
         
@@ -438,20 +438,81 @@ async def get_properties():
         logger.error(f"Error fetching properties: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/properties/stats")
+async def get_property_stats():
+    """Get property statistics by status"""
+    try:
+        property_manager = get_property_manager()
+        stats = await property_manager.get_property_stats()
+        
+        return {
+            "statistics": stats,
+            "available_statuses": PropertyStatus.get_all_statuses()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching property stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/properties/status-info")
+async def get_property_status_info():
+    """Get information about available property statuses"""
+    try:
+        status_info = {
+            "available_statuses": PropertyStatus.get_all_statuses(),
+            "status_descriptions": {
+                "available": "Property is available for rent",
+                "not_available": "Property is not available for rent",
+                "rented": "Property is currently rented",
+                "under_maintenance": "Property is under maintenance",
+                "reserved": "Property is reserved for a tenant"
+            }
+        }
+        
+        return status_info
+        
+    except Exception as e:
+        logger.error(f"Error getting property status info: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/properties/status/{status}")
+async def get_properties_by_status(status: str):
+    """Get properties by status"""
+    try:
+        # Validate status
+        if not PropertyStatus.is_valid(status):
+            valid_statuses = PropertyStatus.get_all_statuses()
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid status '{status}'. Must be one of: {valid_statuses}"
+            )
+        
+        property_manager = get_property_manager()
+        properties = await property_manager.get_properties_by_status(status)
+        
+        return {
+            "properties": properties,
+            "count": len(properties),
+            "status": status
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching properties by status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/properties/{property_id}")
 async def get_property_by_id(property_id: str):
     """Get a specific property by ID"""
     try:
-        property_data = load_property_data()
+        property_manager = get_property_manager()
+        property_data = await property_manager.get_property_by_id(property_id)
+        
         if not property_data:
-            raise HTTPException(status_code=500, detail="Property data not available")
+            raise HTTPException(status_code=404, detail="Property not found")
         
-        # Find the property by ID
-        for prop in property_data:
-            if prop.get('id') == property_id:
-                return prop
-        
-        raise HTTPException(status_code=404, detail="Property not found")
+        return property_data
         
     except HTTPException:
         raise
@@ -461,7 +522,7 @@ async def get_property_by_id(property_id: str):
 
 class PropertyUpdateRequest(BaseModel):
     """Request model for property updates"""
-    property_name: Optional[str] = None
+    name: Optional[str] = None
     address_street: Optional[str] = None
     city: Optional[str] = None
     zip_code: Optional[str] = None
@@ -469,10 +530,44 @@ class PropertyUpdateRequest(BaseModel):
     status: Optional[str] = None
     rent_amount: Optional[float] = None
     utilities_amount: Optional[float] = None
-    date_of_availability: Optional[str] = None
+    availability_date: Optional[str] = None
     deposit_amount: Optional[float] = None
     room_sub_name: Optional[str] = None
     apartment_name: Optional[str] = None
+    surface_area: Optional[float] = None
+    room_count: Optional[int] = None
+    bathroom_type: Optional[str] = None
+    property_type: Optional[str] = None
+    appliances_included: Optional[List[str]] = None
+
+class PropertyStatusUpdateRequest(BaseModel):
+    """Request model for property status updates"""
+    status: str
+
+class PropertyCreateRequest(BaseModel):
+    """Request model for creating new properties"""
+    name: str
+    address_street: Optional[str] = None
+    city: Optional[str] = None
+    zip_code: Optional[str] = None
+    description: Optional[str] = None
+    status: str = "available"
+    rent_amount: Optional[float] = None
+    utilities_amount: Optional[float] = None
+    availability_date: Optional[str] = None
+    deposit_amount: Optional[float] = None
+    room_sub_name: Optional[str] = None
+    apartment_name: Optional[str] = None
+    surface_area: Optional[float] = None
+    room_count: Optional[int] = None
+    bathroom_type: Optional[str] = "shared"
+    property_type: Optional[str] = None
+    appliances_included: Optional[List[str]] = None
+
+class BulkPropertyStatusUpdateRequest(BaseModel):
+    """Request model for bulk property status updates"""
+    property_ids: List[str]
+    status: str
 
 class BulkTenantUpdateRequest(BaseModel):
     """Request model for bulk tenant updates"""
@@ -484,53 +579,133 @@ class BulkTenantUpdateRequest(BaseModel):
 async def update_property(property_id: str, request: PropertyUpdateRequest):
     """Update a specific property"""
     try:
-        # For now, we'll update the cached data
-        # In a production system, this would update Airtable directly
-        global property_data_cache
+        property_manager = get_property_manager()
         
-        if property_data_cache is None:
-            property_data_cache = load_property_data()
+        # Convert request to dict, removing None values
+        updates = request.dict(exclude_unset=True)
         
-        # Find and update the property
-        for prop in property_data_cache:
-            if prop.get('id') == property_id:
-                fields = prop.get('fields', {})
-                
-                # Update only the fields that are provided
-                if request.property_name is not None:
-                    fields['property_name'] = request.property_name
-                if request.address_street is not None:
-                    fields['address_street'] = request.address_street
-                if request.city is not None:
-                    fields['city'] = request.city
-                if request.zip_code is not None:
-                    fields['zip_code'] = request.zip_code
-                if request.description is not None:
-                    fields['Description'] = request.description
-                if request.status is not None:
-                    fields['status'] = request.status
-                if request.rent_amount is not None:
-                    fields['rent_amount'] = request.rent_amount
-                if request.utilities_amount is not None:
-                    fields['utilities_amout'] = request.utilities_amount
-                if request.date_of_availability is not None:
-                    fields['date_of_availability'] = request.date_of_availability
-                if request.deposit_amount is not None:
-                    fields['deposit_amount'] = request.deposit_amount
-                if request.room_sub_name is not None:
-                    fields['room_sub_name'] = request.room_sub_name
-                if request.apartment_name is not None:
-                    fields['apartment_name'] = request.apartment_name
-                
-                logger.info(f"Property {property_id} updated successfully")
-                return {"message": "Property updated successfully", "property_id": property_id}
+        success = await property_manager.update_property(property_id, updates)
         
-        raise HTTPException(status_code=404, detail="Property not found")
+        if not success:
+            raise HTTPException(status_code=404, detail="Property not found")
+        
+        logger.info(f"Property {property_id} updated successfully")
+        return {"message": "Property updated successfully", "property_id": property_id}
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error updating property: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/properties/{property_id}/status")
+async def update_property_status(property_id: str, request: PropertyStatusUpdateRequest):
+    """Update property status (available, not_available, rented, etc.)"""
+    try:
+        # Validate status
+        if not PropertyStatus.is_valid(request.status):
+            valid_statuses = PropertyStatus.get_all_statuses()
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid status '{request.status}'. Must be one of: {valid_statuses}"
+            )
+        
+        property_manager = get_property_manager()
+        success = await property_manager.update_property_status(property_id, request.status)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Property not found")
+        
+        return {
+            "message": f"Property status updated to '{request.status}' successfully",
+            "property_id": property_id,
+            "new_status": request.status
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating property status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/properties")
+async def create_property(request: PropertyCreateRequest):
+    """Create a new property"""
+    try:
+        property_manager = get_property_manager()
+        
+        # Convert request to dict
+        property_data = request.dict()
+        
+        # Validate status
+        if not PropertyStatus.is_valid(property_data.get("status", "available")):
+            valid_statuses = PropertyStatus.get_all_statuses()
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid status '{property_data.get('status')}'. Must be one of: {valid_statuses}"
+            )
+        
+        result = await property_manager.create_property(property_data)
+        
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to create property")
+        
+        return {
+            "message": "Property created successfully",
+            "property": result
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating property: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/properties/{property_id}")
+async def delete_property(property_id: str):
+    """Delete a property"""
+    try:
+        property_manager = get_property_manager()
+        success = await property_manager.delete_property(property_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Property not found")
+        
+        return {"message": f"Property {property_id} deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting property: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.post("/properties/bulk-status-update")
+async def bulk_update_property_status(request: BulkPropertyStatusUpdateRequest):
+    """Bulk update property statuses"""
+    try:
+        # Validate status
+        if not PropertyStatus.is_valid(request.status):
+            valid_statuses = PropertyStatus.get_all_statuses()
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid status '{request.status}'. Must be one of: {valid_statuses}"
+            )
+        
+        property_manager = get_property_manager()
+        results = await property_manager.bulk_update_status(request.property_ids, request.status)
+        
+        return {
+            "message": f"Bulk status update completed",
+            "new_status": request.status,
+            "results": results
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in bulk property status update: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/tenants/bulk-update")

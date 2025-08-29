@@ -1,6 +1,6 @@
 """
-Prompt management system for Rental Genie Agent - Version 5
-Enhanced with no-properties-available handling
+Prompt management system for Rental Genie Agent
+Allows easy versioning and updating of system prompts
 """
 
 from typing import Dict, Any
@@ -190,7 +190,74 @@ End responses with a structured JSON output for internal parsing:
 
 Property data: {property_data}"""
     
-    def _get_v5_prompt(self) -> str:
+    def get_prompt(self, version: str = "current") -> str:
+        """Get a specific version of the prompt"""
+        if version not in self.prompts:
+            raise ValueError(f"Unknown prompt version: {version}. Available versions: {list(self.prompts.keys())}")
+        return self.prompts[version]
+    
+    def get_current_prompt(self) -> str:
+        """Get the current (latest) prompt"""
+        return self.prompts["current"]
+    
+    def add_prompt_version(self, version: str, prompt: str):
+        """Add a new prompt version"""
+        self.prompts[version] = prompt
+        print(f"Added new prompt version: {version}")
+    
+    def set_current_version(self, version: str):
+        """Set the current version to use"""
+        if version not in self.prompts:
+            raise ValueError(f"Unknown prompt version: {version}")
+        self.prompts["current"] = self.prompts[version]
+        print(f"Set current prompt version to: {version}")
+    
+    def list_versions(self) -> list:
+        """List all available prompt versions"""
+        return [k for k in self.prompts.keys() if k != "current"]
+    
+    def get_prompt_info(self) -> Dict[str, Any]:
+        """Get information about all prompts"""
+        current_version = "v4" if self.prompts["current"] == self.prompts["v4"] else "v3" if self.prompts["current"] == self.prompts["v3"] else "v2" if self.prompts["current"] == self.prompts["v2"] else "v1"
+        return {
+            "current_version": current_version,
+            "available_versions": self.list_versions(),
+            "total_versions": len(self.list_versions())
+        }
+
+# Global prompt manager instance
+prompt_manager = PromptManager()
+
+def get_system_prompt(property_data: str, version: str = "current") -> str:
+    """
+    Get the system prompt with property data injected
+    
+    Args:
+        property_data: The property data to inject into the prompt
+        version: The prompt version to use (default: "current")
+    
+    Returns:
+        The formatted system prompt
+    """
+    prompt_template = prompt_manager.get_prompt(version)
+    return prompt_template.format(property_data=property_data)
+
+# Global prompt manager instance
+prompt_manager = PromptManager()
+
+def get_system_prompt(property_data: str, version: str = "current") -> str:
+    """
+    Get the system prompt with property data injected
+    
+    Args:
+        property_data: The property data to inject into the prompt
+        version: The prompt version to use (default: "current")
+    
+    Returns:
+        The formatted system prompt
+    """
+    prompt_template = prompt_manager.get_prompt(version)
+    return prompt_template.format(property_data=property_data)
         """Enhanced prompt with no-properties-available handling"""
         return """You are RentalGenie, a helpful and professional AI assistant for managing rental inquiries on behalf of a property owner. Property details, including amenities, availability dates, pricing, and preferred tenant profiles (e.g., age range, sex for mixity, occupation), are provided in the {property_data} placeholder below. Always reference this data accurately without hallucinating.
 
@@ -272,58 +339,6 @@ End responses with a structured JSON output for internal parsing:
 }}
 
 Property data: {property_data}"""
-    
-    def get_prompt(self, version: str = "current") -> str:
-        """Get a specific version of the prompt"""
-        if version not in self.prompts:
-            raise ValueError(f"Unknown prompt version: {version}. Available versions: {list(self.prompts.keys())}")
-        return self.prompts[version]
-    
-    def get_current_prompt(self) -> str:
-        """Get the current (latest) prompt"""
-        return self.prompts["current"]
-    
-    def add_prompt_version(self, version: str, prompt: str):
-        """Add a new prompt version"""
-        self.prompts[version] = prompt
-        print(f"Added new prompt version: {version}")
-    
-    def set_current_version(self, version: str):
-        """Set the current version to use"""
-        if version not in self.prompts:
-            raise ValueError(f"Unknown prompt version: {version}")
-        self.prompts["current"] = self.prompts[version]
-        print(f"Set current prompt version to: {version}")
-    
-    def list_versions(self) -> list:
-        """List all available prompt versions"""
-        return [k for k in self.prompts.keys() if k != "current"]
-    
-    def get_prompt_info(self) -> Dict[str, Any]:
-        """Get information about all prompts"""
-        current_version = "v5" if self.prompts["current"] == self.prompts["v5"] else "v4" if self.prompts["current"] == self.prompts["v4"] else "v3" if self.prompts["current"] == self.prompts["v3"] else "v2" if self.prompts["current"] == self.prompts["v2"] else "v1"
-        return {
-            "current_version": current_version,
-            "available_versions": self.list_versions(),
-            "total_versions": len(self.list_versions())
-        }
-
-# Global prompt manager instance
-prompt_manager = PromptManager()
-
-def get_system_prompt(property_data: str, version: str = "current") -> str:
-    """
-    Get the system prompt with property data injected
-    
-    Args:
-        property_data: The property data to inject into the prompt
-        version: The prompt version to use (default: "current")
-    
-    Returns:
-        The formatted system prompt
-    """
-    prompt_template = prompt_manager.get_prompt(version)
-    return prompt_template.format(property_data=property_data)
 
 def update_prompt_version(version: str):
     """Update the current prompt version"""
